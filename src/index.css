@@ -1,0 +1,177 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Neon Dark Portfolio Design System - All colors MUST be HSL */
+
+@layer base {
+  :root {
+    /* Core Colors */
+    --background: 0 0% 0%;                    /* #000000 - Pure black */
+    --foreground: 0 0% 100%;                  /* #FFFFFF - Pure white */
+    
+    /* Accent & Brand Colors */
+    --primary: 100 100% 56%;                  /* #39FF14 - Neon green */
+    --primary-foreground: 0 0% 0%;            /* #000000 - Black on green */
+    --accent: 100 100% 56%;                   /* #39FF14 - Neon green */
+    --accent-foreground: 0 0% 0%;             /* #000000 - Black on green */
+    
+    /* Surface Colors */
+    --card: 0 0% 6.7%;                        /* #111111 - Very dark gray */
+    --card-foreground: 0 0% 100%;             /* #FFFFFF - White text */
+    --muted: 0 0% 10.2%;                      /* #1A1A1A - Dark gray */
+    --muted-foreground: 0 0% 80%;             /* #CCCCCC - Light gray */
+    
+    /* Interactive Elements */
+    --secondary: 0 0% 6.7%;                   /* #111111 - Card background */
+    --secondary-foreground: 0 0% 100%;        /* #FFFFFF - White text */
+    --popover: 0 0% 6.7%;                     /* #111111 - Dark popover */
+    --popover-foreground: 0 0% 100%;          /* #FFFFFF - White text */
+    
+    /* UI Elements */
+    --border: 0 0% 20%;                       /* #333333 - Subtle borders */
+    --input: 0 0% 6.7%;                       /* #111111 - Input background */
+    --ring: 100 100% 56%;                     /* #39FF14 - Focus ring */
+    --destructive: 0 84.2% 60.2%;            /* #f56565 - Error red */
+    --destructive-foreground: 210 40% 98%;   /* #f7fafc - Light text */
+
+    /* Design Tokens */
+    --radius: 0.75rem;                        /* 12px border radius */
+    
+    /* Custom Gradients */
+    --gradient-neon: linear-gradient(135deg, hsl(var(--primary)), hsl(100 100% 45%));
+    --gradient-dark: linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted)));
+    
+    /* Glow Effects */
+    --glow-primary: 0 0 20px hsl(var(--primary) / 0.5);
+    --glow-primary-strong: 0 0 40px hsl(var(--primary) / 0.8);
+    --shadow-neon: 0 4px 20px hsl(var(--primary) / 0.3);
+    
+    /* Typography Scale */
+    --font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-size-xs: 0.75rem;     /* 12px */
+    --font-size-sm: 0.875rem;    /* 14px */
+    --font-size-base: 1rem;      /* 16px */
+    --font-size-lg: 1.125rem;    /* 18px */
+    --font-size-xl: 1.25rem;     /* 20px */
+    --font-size-2xl: 1.5rem;     /* 24px */
+    --font-size-3xl: 1.875rem;   /* 30px */
+    --font-size-4xl: 2.25rem;    /* 36px */
+    --font-size-5xl: 3rem;       /* 48px */
+    
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dark {
+    /* Dark mode uses same colors as this is already a dark theme */
+    --background: 0 0% 0%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 6.7%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 6.7%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 100 100% 56%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 6.7%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 10.2%;
+    --muted-foreground: 0 0% 80%;
+    --accent: 100 100% 56%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 0 0% 20%;
+    --input: 0 0% 6.7%;
+    --ring: 100 100% 56%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground font-[var(--font-family)] antialiased;
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-bold tracking-tight;
+  }
+  
+  /* Neon glow utilities */
+  .glow-primary {
+    box-shadow: var(--glow-primary);
+  }
+  
+  .glow-primary-strong {
+    box-shadow: var(--glow-primary-strong);
+  }
+  
+  .shadow-neon {
+    box-shadow: var(--shadow-neon);
+  }
+  
+  /* Smooth transitions */
+  .transition-smooth {
+    transition: var(--transition-smooth);
+  }
+  
+  .transition-fast {
+    transition: var(--transition-fast);
+  }
+
+  /* Scroll animations */
+  .fade-in-up {
+    opacity: 0;
+    transform: translateY(30px);
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .fade-in-up.animate {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .fade-in-left {
+    opacity: 0;
+    transform: translateX(-40px);
+    transition: all 0.8s ease-in-out;
+  }
+
+  .fade-in-left.animate {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .fade-in-right {
+    opacity: 0;
+    transform: translateX(40px);
+    transition: all 0.8s ease-in-out;
+  }
+
+  .fade-in-right.animate {
+    opacity: 1;
+    transform: translateX(0);
+  }
+
+  .scale-in {
+    opacity: 0;
+    transform: scale(0.9);
+    transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .scale-in.animate {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  .stagger-1 { transition-delay: 0.1s; }
+  .stagger-2 { transition-delay: 0.2s; }
+  .stagger-3 { transition-delay: 0.3s; }
+  .stagger-4 { transition-delay: 0.4s; }
+  .stagger-5 { transition-delay: 0.5s; }
+  .stagger-6 { transition-delay: 0.6s; }
+}
