@@ -21,6 +21,7 @@ const Header = () => {
     { label: 'About', href: '/about' },
     { label: 'Services', href: '/services' },
     { label: 'Portfolio', href: '/portfolio' },
+    { label: 'Blog', href: '/blog' },
     { label: 'Videos', href: '/videos' },
     { label: 'Journey', href: '/journey' },
     { label: 'Contact', href: '/contact' },
@@ -51,7 +52,7 @@ const Header = () => {
             <Link
               key={link.label}
               to={link.href}
-              className={`transition-colors duration-300 font-medium ${
+              className={`transition-colors duration-300 font-medium text-lg ${
                 isActive(link.href) 
                   ? 'text-primary' 
                   : 'text-foreground hover:text-primary'
@@ -87,7 +88,7 @@ const Header = () => {
               <Link
                 key={link.label}
                 to={link.href}
-                className={`block w-full text-left transition-colors duration-300 font-medium py-2 ${
+                className={`block w-full text-left transition-colors duration-300 font-medium py-2 text-lg ${
                   isActive(link.href) 
                     ? 'text-primary' 
                     : 'text-foreground hover:text-primary'

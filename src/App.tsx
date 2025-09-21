@@ -12,6 +12,14 @@ import Videos from "./pages/Videos";
 import Journey from "./pages/Journey";
 import Contact from "./pages/Contact";
 import NotFound from "./pages/NotFound";
+import Login from "./pages/Login";
+import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
+import AdminLayout from "./components/AdminLayout";
+import ArticlesList from "./pages/ArticlesList";
+import ArticleEditor from "./pages/ArticleEditor";
+import MediaManager from "./pages/MediaManager";
+import AdminSettings from "./pages/AdminSettings";
 
 const queryClient = new QueryClient();
 
@@ -46,6 +54,24 @@ const App = () => (
           <Route path="/videos" element={<Videos />} />
           <Route path="/journey" element={<Journey />} />
           <Route path="/contact" element={<Contact />} />
+          
+          {/* Blog Routes */}
+          <Route path="/blog" element={<Blog />} />
+          <Route path="/blog/:slug" element={<BlogPost />} />
+          
+          {/* Auth Routes */}
+          <Route path="/login" element={<Login />} />
+          
+          {/* Admin Routes */}
+          <Route path="/admin" element={<AdminLayout />}>
+            <Route path="dashboard" element={<div />} />
+            <Route path="articles" element={<ArticlesList />} />
+            <Route path="articles/new" element={<ArticleEditor />} />
+            <Route path="articles/:id/edit" element={<ArticleEditor />} />
+            <Route path="media" element={<MediaManager />} />
+            <Route path="settings" element={<AdminSettings />} />
+          </Route>
+          
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
