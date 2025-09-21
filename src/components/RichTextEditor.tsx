@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Bold, Italic, List, ListOrdered, Image, Link, Minus, Heading1, Heading2, Heading3 } from 'lucide-react';
+import { Bold, Italic, List, ListOrdered, Image, Link, Minus, Heading1, Heading2, Heading3, Eye } from 'lucide-react';
 
 interface RichTextEditorProps {
   value: string;
@@ -65,7 +65,7 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
     if (!content) return '';
 
     // Convert markdown to HTML for preview with proper styling
-    return content
+    let formattedContent = content
       .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-foreground">$1</strong>') // Bold
       .replace(/\*(.*?)\*/g, '<em class="italic text-foreground">$1</em>') // Italic
       .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto my-4 rounded-lg border border-border" />') // Images
@@ -78,11 +78,19 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
       .replace(/(?:<li class="ml-6 list-(?:disc|decimal) text-foreground my-1">.*<\/li>)+/gs, (match) => {
         const isOrdered = match.includes('list-decimal');
         return `<${isOrdered ? 'ol' : 'ul'} class="my-4 space-y-1">${match}</${isOrdered ? 'ol' : 'ul'}>`;
-      }) // Wrap list items
-      .replace(/\n\n/g, '</p><p class="mb-4 text-foreground">') // Paragraphs
-      .replace(/\n/g, '<br />') // Line breaks
-      .replace(/^<p class="mb-4 text-foreground">/, '<p class="mb-4 text-foreground">') // First paragraph
-      .replace(/<p class="mb-4 text-foreground">$/, '</p>'); // Last paragraph
+      }); // Wrap list items
+
+    // Handle paragraphs and line breaks
+    if (formattedContent.includes('\n\n')) {
+      formattedContent = formattedContent
+        .split('\n\n')
+        .map(paragraph => `<p class="mb-4 text-foreground">${paragraph.replace(/\n/g, '<br />')}</p>`)
+        .join('');
+    } else {
+      formattedContent = `<p class="mb-4 text-foreground">${formattedContent.replace(/\n/g, '<br />')}</p>`;
+    }
+
+    return formattedContent;
   };
 
   return (
@@ -178,7 +186,8 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
           onClick={() => setIsPreview(!isPreview)}
           title="Toggle Preview"
         >
-          Preview
+          <Eye className="h-4 w-4 mr-1" />
+          {isPreview ? 'Edit' : 'Preview'}
         </Button>
       </div>
 
@@ -186,7 +195,7 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
       <div className="p-2 min-h-[300px]">
         {isPreview ? (
           <div 
-            className="prose prose-invert max-w-none p-2 min-h-[300px] text-foreground bg-input rounded-b-lg"
+            className="prose prose-invert max-w-none p-4 min-h-[300px] text-foreground bg-input rounded-b-lg border border-border"
             dangerouslySetInnerHTML={{ __html: formatContent(value || '') }}
           />
         ) : (
@@ -195,7 +204,7 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder || "Write your content here..."}
-            className="min-h-[300px] resize-none bg-input border-0 p-2 focus-visible:ring-0 rounded-b-lg text-foreground"
+            className="min-h-[300px] resize-none bg-input border border-border p-4 focus-visible:ring-0 rounded-b-lg text-foreground"
           />
         )}
       </div>

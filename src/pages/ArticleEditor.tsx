@@ -124,9 +124,9 @@ const ArticleEditor = () => {
         const content = article.content || '';
         const imageMarkdown = `\n![Image](${publicUrl})\n`;
         const newContent = content.substring(0, start) + imageMarkdown + content.substring(end);
-        
+      
         setArticle(prev => ({ ...prev, content: newContent }));
-        
+      
         toast.success("Image uploaded and inserted successfully.");
       }
     } catch (error) {
@@ -143,7 +143,7 @@ const ArticleEditor = () => {
     try {
       const publicUrl = await handleImageUpload(file);
       setArticle(prev => ({ ...prev, featured_image: publicUrl }));
-      
+    
       toast.success("Featured image uploaded successfully.");
     } catch (error) {
       toast.error("Failed to upload featured image.");
