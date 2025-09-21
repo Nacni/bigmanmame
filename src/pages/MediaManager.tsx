@@ -10,10 +10,30 @@ import {
   Trash2, 
   Copy, 
   Search,
-  Download
+  Download,
+  File,
+  Video,
+  Music,
+  FileText as DocumentIcon,
+  Filter,
+  ChevronDown,
+  MoreHorizontal
 } from 'lucide-react';
 import { supabase, Media } from '@/lib/supabase';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 const MediaManager = () => {
   const [media, setMedia] = useState<Media[]>([]);
@@ -21,7 +41,7 @@ const MediaManager = () => {
   const [uploading, setUploading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedFiles, setSelectedFiles] = useState<FileList | null>(null);
-  const { toast } = useToast();
+  const [fileTypeFilter, setFileTypeFilter] = useState<'all' | 'images' | 'videos' | 'documents'>('all');
 
   useEffect(() => {
     fetchMedia();
@@ -38,11 +58,7 @@ const MediaManager = () => {
       setMedia(data || []);
     } catch (error) {
       console.error('Error fetching media:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load media files.",
-        variant: "destructive",
-      });
+      toast.error("Failed to load media files.");
     } finally {
       setLoading(false);
     }
@@ -104,17 +120,10 @@ const MediaManager = () => {
       const fileInput = document.getElementById('file-upload') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
 
-      toast({
-        title: "Success!",
-        description: `${uploadedFiles.length} file(s) uploaded successfully.`,
-      });
+      toast.success(`${uploadedFiles.length} file(s) uploaded successfully.`);
     } catch (error) {
       console.error('Error uploading files:', error);
-      toast({
-        title: "Error",
-        description: "Failed to upload files. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to upload files. Please try again.");
     } finally {
       setUploading(false);
     }
@@ -144,32 +153,69 @@ const MediaManager = () => {
       if (dbError) throw dbError;
 
       setMedia(prev => prev.filter(item => item.id !== mediaItem.id));
-      toast({
-        title: "Deleted",
-        description: "Media file deleted successfully.",
-      });
+      toast.success("Media file deleted successfully.");
     } catch (error) {
       console.error('Error deleting media:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete media file.",
-        variant: "destructive",
-      });
+      toast.error("Failed to delete media file.");
     }
   };
 
   const copyToClipboard = (url: string) => {
     navigator.clipboard.writeText(url);
-    toast({
-      title: "Copied!",
-      description: "Image URL copied to clipboard.",
-    });
+    toast.success("Image URL copied to clipboard.");
   };
 
-  const filteredMedia = media.filter(item =>
-    item.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (item.alt_text && item.alt_text.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  // Get file type icon
+  const getFileIcon = (filename: string) => {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '')) {
+      return <ImageIcon className="h-8 w-8 text-blue-500" />;
+    }
+    
+    if (['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'].includes(ext || '')) {
+      return <Video className="h-8 w-8 text-purple-500" />;
+    }
+    
+    if (['mp3', 'wav', 'ogg', 'flac', 'aac'].includes(ext || '')) {
+      return <Music className="h-8 w-8 text-green-500" />;
+    }
+    
+    if (['pdf', 'doc', 'docx', 'txt', 'rtf'].includes(ext || '')) {
+      return <DocumentIcon className="h-8 w-8 text-red-500" />;
+    }
+    
+    return <File className="h-8 w-8 text-gray-500" />;
+  };
+
+  // Check file type for filtering
+  const isFileType = (filename: string, type: 'images' | 'videos' | 'documents') => {
+    const ext = filename.split('.').pop()?.toLowerCase();
+    
+    if (type === 'images') {
+      return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext || '');
+    }
+    
+    if (type === 'videos') {
+      return ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm'].includes(ext || '');
+    }
+    
+    if (type === 'documents') {
+      return ['pdf', 'doc', 'docx', 'txt', 'rtf'].includes(ext || '');
+    }
+    
+    return false;
+  };
+
+  const filteredMedia = media.filter(item => {
+    // Apply search filter
+    const matchesSearch = item.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.alt_text && item.alt_text.toLowerCase().includes(searchTerm.toLowerCase()));
+    
+    // Apply file type filter
+    if (fileTypeFilter === 'all') return matchesSearch;
+    return matchesSearch && isFileType(item.filename, fileTypeFilter);
+  });
 
   if (loading) {
     return (
@@ -221,7 +267,7 @@ const MediaManager = () => {
           <Button
             onClick={uploadFiles}
             disabled={!selectedFiles || uploading}
-            className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow text-base"
+            className="bg-primary text-primary-foreground hover:bg-primary/90"
           >
             {uploading ? (
               <div className="flex items-center">
@@ -238,17 +284,71 @@ const MediaManager = () => {
         </CardContent>
       </Card>
 
-      {/* Search */}
+      {/* Search and Filters */}
       <Card className="bg-card border-border">
         <CardContent className="pt-6">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-            <Input
-              placeholder="Search media files..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 h-12 text-base bg-input border-border focus:border-primary"
-            />
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search media files..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-10 text-base bg-input border-border focus:border-primary"
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="h-10">
+                    <Filter className="mr-2 h-4 w-4" />
+                    Filter
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setFileTypeFilter('all')}>
+                    All Files
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFileTypeFilter('images')}>
+                    Images
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFileTypeFilter('videos')}>
+                    Videos
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFileTypeFilter('documents')}>
+                    Documents
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+          
+          {/* Stats */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mt-4 pt-4 border-t border-border">
+            <div className="text-center p-3 bg-muted/50 rounded-lg">
+              <p className="text-2xl font-bold text-foreground">{media.length}</p>
+              <p className="text-sm text-muted-foreground">Total Files</p>
+            </div>
+            <div className="text-center p-3 bg-muted/50 rounded-lg">
+              <p className="text-2xl font-bold text-blue-500">
+                {media.filter(item => isFileType(item.filename, 'images')).length}
+              </p>
+              <p className="text-sm text-muted-foreground">Images</p>
+            </div>
+            <div className="text-center p-3 bg-muted/50 rounded-lg">
+              <p className="text-2xl font-bold text-purple-500">
+                {media.filter(item => isFileType(item.filename, 'videos')).length}
+              </p>
+              <p className="text-sm text-muted-foreground">Videos</p>
+            </div>
+            <div className="text-center p-3 bg-muted/50 rounded-lg">
+              <p className="text-2xl font-bold text-red-500">
+                {media.filter(item => isFileType(item.filename, 'documents')).length}
+              </p>
+              <p className="text-sm text-muted-foreground">Documents</p>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -260,23 +360,22 @@ const MediaManager = () => {
             <div className="text-center">
               <ImageIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold text-foreground mb-2">
-                {searchTerm ? 'No media found' : 'No media files yet'}
+                {searchTerm || fileTypeFilter !== 'all' ? 'No media found' : 'No media files yet'}
               </h3>
               <p className="text-base text-muted-foreground">
-                {searchTerm 
-                  ? 'Try adjusting your search terms.'
-                  : 'Upload your first media file to get started.'
-                }
+                {searchTerm || fileTypeFilter !== 'all'
+                  ? 'Try adjusting your search terms or filters.'
+                  : 'Upload your first media file to get started.'}
               </p>
             </div>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
           {filteredMedia.map((mediaItem) => (
-            <Card key={mediaItem.id} className="bg-card border-border hover:shadow-neon transition-shadow duration-300">
+            <Card key={mediaItem.id} className="bg-card border-border hover:shadow-md transition-all duration-300">
               <CardContent className="p-4">
-                <div className="aspect-square mb-3 bg-muted rounded-lg overflow-hidden">
+                <div className="aspect-square mb-3 bg-muted rounded-lg overflow-hidden flex items-center justify-center">
                   {mediaItem.url.match(/\.(jpg|jpeg|png|gif|webp)$/i) ? (
                     <img
                       src={mediaItem.url}
@@ -285,12 +384,12 @@ const MediaManager = () => {
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">
-                      <ImageIcon className="h-12 w-12 text-muted-foreground" />
+                      {getFileIcon(mediaItem.filename)}
                     </div>
                   )}
                 </div>
 
-                <div className="space-y-2">
+                <div className="space-y-1">
                   <h3 className="font-medium text-foreground text-sm truncate">
                     {mediaItem.filename}
                   </h3>
@@ -301,33 +400,37 @@ const MediaManager = () => {
 
                 <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     onClick={() => copyToClipboard(mediaItem.url)}
-                    className="text-xs"
+                    className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
                   >
-                    <Copy className="h-3 w-3 mr-1" />
-                    Copy URL
+                    <Copy className="h-4 w-4" />
                   </Button>
                   
                   <div className="flex items-center space-x-1">
                     <Button
-                      variant="outline"
+                      variant="ghost"
                       size="sm"
                       onClick={() => window.open(mediaItem.url, '_blank')}
-                      className="text-xs"
+                      className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
                     >
-                      <Download className="h-3 w-3" />
+                      <Download className="h-4 w-4" />
                     </Button>
                     
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(mediaItem)}
-                      className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground text-xs"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground h-8 w-8 p-0">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleDelete(mediaItem)}>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </CardContent>

@@ -2,17 +2,17 @@ import { useState, useEffect, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, Eye, ArrowLeft, Trash2, Plus, Upload, X } from 'lucide-react';
+import { Save, Eye, ArrowLeft, Trash2, Plus, Upload, X, Calendar, Tag, Hash, FileText } from 'lucide-react';
 import { supabase, Article } from '@/lib/supabase';
 import { useNavigate, useParams } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/sonner';
 import RichTextEditor from '@/components/RichTextEditor';
-import CommentsManager from '@/components/CommentsManager';
 
 const ArticleEditor = () => {
   const [article, setArticle] = useState<Partial<Article>>({
@@ -30,7 +30,6 @@ const ArticleEditor = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { id } = useParams();
   const navigate = useNavigate();
-  const { toast } = useToast();
   const isEditing = Boolean(id && id !== 'new');
 
   useEffect(() => {
@@ -57,6 +56,7 @@ const ArticleEditor = () => {
     } catch (error) {
       console.error('Error fetching article:', error);
       setError('Failed to load article');
+      toast.error("Failed to load article");
     } finally {
       setLoading(false);
     }
@@ -127,17 +127,10 @@ const ArticleEditor = () => {
         
         setArticle(prev => ({ ...prev, content: newContent }));
         
-        toast({
-          title: "Success!",
-          description: "Image uploaded and inserted successfully.",
-        });
+        toast.success("Image uploaded and inserted successfully.");
       }
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to upload image.",
-        variant: "destructive",
-      });
+      toast.error("Failed to upload image.");
     }
   };
 
@@ -151,16 +144,9 @@ const ArticleEditor = () => {
       const publicUrl = await handleImageUpload(file);
       setArticle(prev => ({ ...prev, featured_image: publicUrl }));
       
-      toast({
-        title: "Success!",
-        description: "Featured image uploaded successfully.",
-      });
+      toast.success("Featured image uploaded successfully.");
     } catch (error) {
-      toast({
-        title: "Error",
-        description: "Failed to upload featured image.",
-        variant: "destructive",
-      });
+      toast.error("Failed to upload featured image.");
     }
   };
 
@@ -211,10 +197,7 @@ const ArticleEditor = () => {
 
       if (result.error) throw result.error;
 
-      toast({
-        title: "Success!",
-        description: `Article ${isEditing ? 'updated' : 'created'} successfully.`,
-      });
+      toast.success(`Article ${isEditing ? 'updated' : 'created'} successfully.`);
 
       if (!isEditing && result.data) {
         navigate(`/admin/articles/${result.data.id}/edit`);
@@ -222,11 +205,7 @@ const ArticleEditor = () => {
     } catch (error) {
       console.error('Error saving article:', error);
       setError('Failed to save article');
-      toast({
-        title: "Error",
-        description: "Failed to save article. Please try again.",
-        variant: "destructive",
-      });
+      toast.error("Failed to save article. Please try again.");
     } finally {
       setSaving(false);
     }
@@ -243,19 +222,11 @@ const ArticleEditor = () => {
 
       if (error) throw error;
 
-      toast({
-        title: "Success!",
-        description: "Article deleted successfully.",
-      });
-
+      toast.success("Article deleted successfully.");
       navigate('/admin/articles');
     } catch (error) {
       console.error('Error deleting article:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete article.",
-        variant: "destructive",
-      });
+      toast.error("Failed to delete article.");
     }
   };
 
@@ -269,25 +240,33 @@ const ArticleEditor = () => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <Button variant="outline" onClick={() => navigate('/admin/articles')} className="mb-4">
+          <Button variant="outline" onClick={() => navigate('/admin/articles')} className="mb-3">
             <ArrowLeft className="h-4 w-4 mr-2" />
             Back to Articles
           </Button>
-          <h1 className="text-3xl font-bold text-foreground">
+          <h1 className="text-2xl font-bold text-foreground">
             {isEditing ? 'Edit Article' : 'Create Article'}
           </h1>
+          {isEditing && article.created_at && (
+            <p className="text-sm text-muted-foreground mt-1">
+              Created: {new Date(article.created_at).toLocaleDateString()} • 
+              Last updated: {new Date(article.updated_at || article.created_at).toLocaleDateString()}
+            </p>
+          )}
         </div>
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           <Button
             variant="outline"
             onClick={() => handleSave('draft')}
             disabled={saving}
+            className="h-9"
           >
             {saving ? (
               <div className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-2"></div>
                 Saving...
               </div>
             ) : (
@@ -300,11 +279,11 @@ const ArticleEditor = () => {
           <Button
             onClick={() => handleSave('published')}
             disabled={saving}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
+            className="bg-primary text-primary-foreground hover:bg-primary/90 h-9"
           >
             {saving ? (
               <div className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
+                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary-foreground mr-2"></div>
                 Saving...
               </div>
             ) : isEditing ? (
@@ -328,140 +307,172 @@ const ArticleEditor = () => {
         </Alert>
       )}
 
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle>Article Details</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="space-y-4">
-            <Label htmlFor="title">Title</Label>
-            <Input
-              id="title"
-              value={article.title || ''}
-              onChange={(e) => handleTitleChange(e.target.value)}
-              placeholder="Enter article title"
-              className="bg-input border-border"
-            />
-          </div>
-
-          <div className="space-y-4">
-            <Label htmlFor="slug">Slug</Label>
-            <Input
-              id="slug"
-              value={article.slug || ''}
-              onChange={(e) => setArticle(prev => ({ ...prev, slug: e.target.value }))}
-              placeholder="Enter article slug"
-              className="bg-input border-border"
-            />
-          </div>
-
-          <div className="space-y-4">
-            <Label htmlFor="excerpt">Excerpt</Label>
-            <Input
-              id="excerpt"
-              value={article.excerpt || ''}
-              onChange={(e) => setArticle(prev => ({ ...prev, excerpt: e.target.value }))}
-              placeholder="Enter article excerpt"
-              className="bg-input border-border"
-            />
-          </div>
-
-          <div className="space-y-4">
-            <Label htmlFor="featured_image">Featured Image</Label>
-            <div className="flex items-end space-x-4">
-              <div className="flex-1">
+      <Tabs defaultValue="content" className="space-y-6">
+        <TabsList className="grid w-full grid-cols-2">
+          <TabsTrigger value="content" className="flex items-center justify-center">
+            <FileText className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Content</span>
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="flex items-center justify-center">
+            <Tag className="mr-2 h-4 w-4" />
+            <span className="hidden sm:inline">Settings</span>
+          </TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="content" className="space-y-6">
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <FileText className="mr-2 h-5 w-5" />
+                Article Content
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="title">Title</Label>
                 <Input
-                  id="featured_image"
-                  value={article.featured_image || ''}
-                  onChange={(e) => setArticle(prev => ({ ...prev, featured_image: e.target.value }))}
-                  placeholder="Enter image URL"
-                  className="bg-input border-border"
+                  id="title"
+                  value={article.title || ''}
+                  onChange={(e) => handleTitleChange(e.target.value)}
+                  placeholder="Enter article title"
+                  className="bg-input border-border h-10"
                 />
               </div>
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleFeaturedImageUpload}
-                accept="image/*"
-                className="hidden"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                onClick={triggerFileInput}
-                disabled={uploading}
-              >
-                {uploading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
-                    Uploading...
-                  </div>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Upload
-                  </>
-                )}
-              </Button>
-            </div>
-            {article.featured_image && (
-              <div className="mt-4">
-                <img
-                  src={article.featured_image}
-                  alt="Featured"
-                  className="w-full h-48 object-cover rounded-lg border border-border"
+
+              <div className="space-y-2">
+                <Label htmlFor="excerpt">Excerpt</Label>
+                <Textarea
+                  id="excerpt"
+                  value={article.excerpt || ''}
+                  onChange={(e) => setArticle(prev => ({ ...prev, excerpt: e.target.value }))}
+                  placeholder="Enter a brief description of your article"
+                  rows={3}
+                  className="bg-input border-border resize-none"
                 />
               </div>
-            )}
-          </div>
 
-          <div className="space-y-4">
-            <Label htmlFor="status">Status</Label>
-            <Select
-              value={article.status || 'draft'}
-              onValueChange={(value) => setArticle(prev => ({ ...prev, status: value as any }))}
-            >
-              <SelectTrigger className="bg-input border-border">
-                <SelectValue placeholder="Select status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="draft">Draft</SelectItem>
-                <SelectItem value="published">Published</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="content">Content</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={triggerInlineImageUpload}
+                    disabled={uploading}
+                  >
+                    {uploading ? (
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-2"></div>
+                        Uploading...
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-3 w-3 mr-1" />
+                        Insert Image
+                      </>
+                    )}
+                  </Button>
+                </div>
+                <RichTextEditor
+                  value={article.content || ''}
+                  onChange={(content) => setArticle(prev => ({ ...prev, content }))}
+                  placeholder="Write your content here..."
+                />
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+        
+        <TabsContent value="settings" className="space-y-6">
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Tag className="mr-2 h-5 w-5" />
+                Article Settings
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="space-y-2">
+                <Label htmlFor="slug">Slug</Label>
+                <Input
+                  id="slug"
+                  value={article.slug || ''}
+                  onChange={(e) => setArticle(prev => ({ ...prev, slug: e.target.value }))}
+                  placeholder="Enter article slug"
+                  className="bg-input border-border h-10"
+                />
+              </div>
 
-          <div className="space-y-4">
-            <Label htmlFor="content">Content</Label>
-            <div className="flex flex-wrap gap-2 mb-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={triggerInlineImageUpload}
-                disabled={uploading}
-              >
-                {uploading ? (
-                  <div className="flex items-center">
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
-                    Uploading...
+              <div className="space-y-2">
+                <Label htmlFor="featured_image">Featured Image</Label>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="flex-1">
+                    <Input
+                      id="featured_image"
+                      value={article.featured_image || ''}
+                      onChange={(e) => setArticle(prev => ({ ...prev, featured_image: e.target.value }))}
+                      placeholder="Enter image URL or upload below"
+                      className="bg-input border-border h-10"
+                    />
                   </div>
-                ) : (
-                  <>
-                    <Upload className="h-4 w-4 mr-2" />
-                    Insert Image
-                  </>
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFeaturedImageUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={triggerFileInput}
+                    disabled={uploading}
+                    className="h-10"
+                  >
+                    {uploading ? (
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-2"></div>
+                        Uploading...
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 mr-2" />
+                        Upload
+                      </>
+                    )}
+                  </Button>
+                </div>
+                {article.featured_image && (
+                  <div className="mt-3">
+                    <img
+                      src={article.featured_image}
+                      alt="Featured"
+                      className="w-full h-40 object-cover rounded-lg border border-border"
+                    />
+                  </div>
                 )}
-              </Button>
-            </div>
-            <RichTextEditor
-              value={article.content || ''}
-              onChange={(content) => setArticle(prev => ({ ...prev, content }))}
-              placeholder="Write your content here..."
-            />
-          </div>
-        </CardContent>
-      </Card>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="status">Status</Label>
+                <Select
+                  value={article.status || 'draft'}
+                  onValueChange={(value) => setArticle(prev => ({ ...prev, status: value as any }))}
+                >
+                  <SelectTrigger className="bg-input border-border h-10">
+                    <SelectValue placeholder="Select status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="draft">Draft</SelectItem>
+                    <SelectItem value="published">Published</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+      </Tabs>
 
       <div className="flex justify-between">
         <Button
@@ -480,45 +491,6 @@ const ArticleEditor = () => {
               Delete
             </Button>
           )}
-          <Button
-            variant="outline"
-            onClick={() => handleSave('draft')}
-            disabled={saving}
-          >
-            {saving ? (
-              <div className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
-                Saving...
-              </div>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Save Draft
-              </>
-            )}
-          </Button>
-          <Button
-            onClick={() => handleSave('published')}
-            disabled={saving}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            {saving ? (
-              <div className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
-                Saving...
-              </div>
-            ) : isEditing ? (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Update
-              </>
-            ) : (
-              <>
-                <Save className="h-4 w-4 mr-2" />
-                Publish
-              </>
-            )}
-          </Button>
         </div>
       </div>
     </div>

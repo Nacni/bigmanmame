@@ -1,34 +1,34 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { 
   FileText, 
   Image, 
   Settings, 
   LogOut, 
   Plus, 
-  Edit, 
-  Eye,
-  BarChart3,
   Menu,
   X,
-  MessageSquare
+  MessageSquare,
+  BarChart3,
+  User,
+  Shield,
+  ChevronLeft,
+  ChevronRight,
+  Video
 } from 'lucide-react';
-import { supabase, Article } from '@/lib/supabase';
+import { supabase } from '@/lib/supabase';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 
 const AdminLayout = () => {
   const [user, setUser] = useState<any>(null);
-  const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
   useEffect(() => {
     checkUser();
-    fetchArticles();
   }, []);
 
   const checkUser = async () => {
@@ -38,6 +38,9 @@ const AdminLayout = () => {
         navigate('/login');
         return;
       }
+      
+      // Check if user is admin (implement your own logic here)
+      // For now, we'll assume any authenticated user is an admin
       setUser(user);
     } catch (error) {
       console.error('Error checking user:', error);
@@ -47,24 +50,11 @@ const AdminLayout = () => {
     }
   };
 
-  const fetchArticles = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('articles')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(5);
-
-      if (error) throw error;
-      setArticles(data || []);
-    } catch (error) {
-      console.error('Error fetching articles:', error);
-    }
-  };
-
   const handleLogout = async () => {
     try {
-      await supabase.auth.signOut();
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+      
       navigate('/');
     } catch (error) {
       console.error('Error logging out:', error);
@@ -76,6 +66,7 @@ const AdminLayout = () => {
     { label: 'Articles', href: '/admin/articles', icon: FileText },
     { label: 'Comments', href: '/admin/comments', icon: MessageSquare },
     { label: 'Media', href: '/admin/media', icon: Image },
+    { label: 'Videos', href: '/admin/videos', icon: Video },
     { label: 'Settings', href: '/admin/settings', icon: Settings },
   ];
 
@@ -87,53 +78,132 @@ const AdminLayout = () => {
     );
   }
 
-  const isDashboard = location.pathname === '/admin/dashboard' || location.pathname === '/admin';
-
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
-      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-300 lg:translate-x-0 lg:static lg:inset-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-        <div className="flex items-center justify-between p-6 border-b border-border">
-          <h1 className="text-xl font-bold text-primary animate-glow">Admin Panel</h1>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-muted-foreground hover:text-primary"
+      <div className={`${sidebarCollapsed ? 'w-20' : 'w-64'} hidden md:flex md:flex-col transition-all duration-300 bg-card border-r border-border`}>
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          {!sidebarCollapsed ? (
+            <div className="flex items-center">
+              <div className="bg-primary/10 p-2 rounded-lg mr-3">
+                <Shield className="h-5 w-5 text-primary" />
+              </div>
+              <h1 className="text-xl font-bold text-primary">Admin Panel</h1>
+            </div>
+          ) : (
+            <div className="bg-primary/10 p-2 rounded-lg">
+              <Shield className="h-5 w-5 text-primary" />
+            </div>
+          )}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
+            className="text-muted-foreground hover:text-primary"
           >
-            <X size={24} />
-          </button>
+            {sidebarCollapsed ? <ChevronRight size={20} /> : <ChevronLeft size={20} />}
+          </Button>
         </div>
 
-        <nav className="mt-6">
+        <nav className="flex-1 px-3 py-4">
           {menuItems.map((item) => {
             const Icon = item.icon;
-            const isActive = location.pathname === item.href;
+            const isActive = location.pathname === item.href || location.pathname.startsWith(item.href);
             return (
               <Link
                 key={item.href}
                 to={item.href}
-                className={`flex items-center px-6 py-3 text-lg font-medium transition-colors ${
+                className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors mb-1 ${
                   isActive 
-                    ? 'text-primary bg-primary/10 border-r-2 border-primary' 
+                    ? 'text-primary bg-primary/10' 
                     : 'text-muted-foreground hover:text-primary hover:bg-muted/50'
                 }`}
-                onClick={() => setSidebarOpen(false)}
               >
-                <Icon className="mr-3 h-5 w-5" />
-                {item.label}
+                <Icon className="h-5 w-5" />
+                {!sidebarCollapsed && <span className="ml-3">{item.label}</span>}
               </Link>
             );
           })}
         </nav>
 
-        <div className="absolute bottom-0 w-full p-6 border-t border-border">
-          <div className="mb-4">
-            <p className="text-sm text-muted-foreground">Signed in as:</p>
-            <p className="text-base font-medium text-foreground truncate">{user?.email}</p>
+        <div className="p-4 border-t border-border">
+          <div className="flex items-center mb-3">
+            <div className="bg-primary/10 p-2 rounded-full">
+              <User className="h-5 w-5 text-primary" />
+            </div>
+            {!sidebarCollapsed && (
+              <div className="ml-3 min-w-0">
+                <p className="text-sm font-medium text-foreground truncate">{user?.email}</p>
+                <p className="text-xs text-muted-foreground">Administrator</p>
+              </div>
+            )}
+          </div>
+          {!sidebarCollapsed && (
+            <Button
+              onClick={handleLogout}
+              variant="outline"
+              className="w-full justify-start"
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Sign Out
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Mobile Sidebar */}
+      <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-card border-r border-border transform transition-transform duration-300 md:hidden ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex items-center justify-between p-4 border-b border-border">
+          <div className="flex items-center">
+            <div className="bg-primary/10 p-2 rounded-lg mr-3">
+              <Shield className="h-5 w-5 text-primary" />
+            </div>
+            <h1 className="text-xl font-bold text-primary">Admin Panel</h1>
+          </div>
+          <button
+            onClick={() => setSidebarOpen(false)}
+            className="text-muted-foreground hover:text-primary"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        <nav className="flex-1 px-3 py-4">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.href || location.pathname.startsWith(item.href);
+            return (
+              <Link
+                key={item.href}
+                to={item.href}
+                className={`flex items-center px-3 py-3 text-sm font-medium rounded-lg transition-colors mb-1 ${
+                  isActive 
+                    ? 'text-primary bg-primary/10' 
+                    : 'text-muted-foreground hover:text-primary hover:bg-muted/50'
+                }`}
+                onClick={() => setSidebarOpen(false)}
+              >
+                <Icon className="h-5 w-5" />
+                <span className="ml-3">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        <div className="p-4 border-t border-border">
+          <div className="flex items-center mb-3">
+            <div className="bg-primary/10 p-2 rounded-full mr-3">
+              <User className="h-5 w-5 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-foreground truncate">{user?.email}</p>
+              <p className="text-xs text-muted-foreground">Administrator</p>
+            </div>
           </div>
           <Button
             onClick={handleLogout}
             variant="outline"
-            className="w-full justify-start text-base"
+            className="w-full justify-start"
           >
             <LogOut className="mr-2 h-4 w-4" />
             Sign Out
@@ -144,44 +214,45 @@ const AdminLayout = () => {
       {/* Overlay for mobile */}
       {sidebarOpen && (
         <div 
-          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm lg:hidden"
+          className="fixed inset-0 z-40 bg-background/80 backdrop-blur-sm md:hidden"
           onClick={() => setSidebarOpen(false)}
         />
       )}
 
       {/* Main Content */}
-      <div className="flex-1 lg:ml-0">
+      <div className="flex-1 flex flex-col">
         {/* Header */}
-        <header className="bg-card border-b border-border px-6 py-4">
+        <header className="bg-card border-b border-border px-4 sm:px-6 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
               <button
                 onClick={() => setSidebarOpen(true)}
-                className="lg:hidden mr-4 text-muted-foreground hover:text-primary"
+                className="md:hidden mr-4 text-muted-foreground hover:text-primary"
               >
                 <Menu size={24} />
               </button>
               <div>
-                <h2 className="text-2xl font-bold text-foreground">
-                  {isDashboard ? 'Dashboard' : 'Content Management'}
+                <h2 className="text-xl font-bold text-foreground">
+                  {menuItems.find(item => location.pathname === item.href || location.pathname.startsWith(item.href))?.label || 'Dashboard'}
                 </h2>
-                <p className="text-base text-muted-foreground">
-                  Manage your website content and media
-                </p>
               </div>
             </div>
             
-            <Link to="/admin/articles/new">
-              <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow text-base">
-                <Plus className="mr-2 h-4 w-4" />
-                New Article
-              </Button>
-            </Link>
+            <div className="flex items-center space-x-3">
+              {location.pathname.startsWith('/admin/articles') && (
+                <Link to="/admin/articles/new">
+                  <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                    <Plus className="mr-2 h-4 w-4" />
+                    <span className="hidden sm:inline">New Article</span>
+                  </Button>
+                </Link>
+              )}
+            </div>
           </div>
         </header>
 
         {/* Content */}
-        <main className="p-6">
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
           <Outlet />
         </main>
       </div>

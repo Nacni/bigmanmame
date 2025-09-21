@@ -4,19 +4,30 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Check, X, Trash2 } from 'lucide-react';
-import { supabase, Comment, Article } from '@/lib/supabase';
+import { ArrowLeft, Check, X, Trash2, Filter, ChevronDown } from 'lucide-react';
+import { supabase, Comment } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
+// Define a simplified article type for the dropdown
+interface SimpleArticle {
+  id: string;
+  title: string;
+}
 
 const CommentsList = () => {
   const [comments, setComments] = useState<(Comment & { article_title?: string })[]>([]);
-  const [articles, setArticles] = useState<Article[]>([]);
+  const [articles, setArticles] = useState<SimpleArticle[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('all');
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   useEffect(() => {
     fetchComments();
@@ -50,6 +61,7 @@ const CommentsList = () => {
     } catch (error) {
       console.error('Error fetching comments:', error);
       setError('Failed to load comments');
+      toast.error("Failed to load comments");
     } finally {
       setLoading(false);
     }
@@ -86,17 +98,10 @@ const CommentsList = () => {
         )
       );
 
-      toast({
-        title: "Success!",
-        description: "Comment approved successfully.",
-      });
+      toast.success("Comment approved successfully.");
     } catch (error) {
       console.error('Error approving comment:', error);
-      toast({
-        title: "Error",
-        description: "Failed to approve comment.",
-        variant: "destructive",
-      });
+      toast.error("Failed to approve comment.");
     }
   };
 
@@ -117,17 +122,10 @@ const CommentsList = () => {
         )
       );
 
-      toast({
-        title: "Success!",
-        description: "Comment rejected successfully.",
-      });
+      toast.success("Comment rejected successfully.");
     } catch (error) {
       console.error('Error rejecting comment:', error);
-      toast({
-        title: "Error",
-        description: "Failed to reject comment.",
-        variant: "destructive",
-      });
+      toast.error("Failed to reject comment.");
     }
   };
 
@@ -143,18 +141,10 @@ const CommentsList = () => {
       if (error) throw error;
 
       setComments(prev => prev.filter(comment => comment.id !== commentId));
-
-      toast({
-        title: "Deleted",
-        description: "Comment deleted successfully.",
-      });
+      toast.success("Comment deleted successfully.");
     } catch (error) {
       console.error('Error deleting comment:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete comment.",
-        variant: "destructive",
-      });
+      toast.error("Failed to delete comment.");
     }
   };
 
@@ -194,11 +184,11 @@ const CommentsList = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center space-x-4">
           <Button
             variant="outline"
-            onClick={() => navigate('/admin')}
+            onClick={() => navigate('/admin/dashboard')}
             className="text-base"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
@@ -211,16 +201,26 @@ const CommentsList = () => {
         </div>
 
         <div className="flex items-center space-x-3">
-          <Select value={filter} onValueChange={(value: 'all' | 'pending' | 'approved') => setFilter(value)}>
-            <SelectTrigger className="w-[180px]">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Comments</SelectItem>
-              <SelectItem value="pending">Pending Approval</SelectItem>
-              <SelectItem value="approved">Approved</SelectItem>
-            </SelectContent>
-          </Select>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-10">
+                <Filter className="mr-2 h-4 w-4" />
+                Filter
+                <ChevronDown className="ml-2 h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => setFilter('all')}>
+                All Comments
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFilter('pending')}>
+                Pending Approval
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setFilter('approved')}>
+                Approved
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -247,7 +247,7 @@ const CommentsList = () => {
                   {comments.filter(c => !c.approved).length}
                 </p>
               </div>
-              <Badge variant="secondary" className="text-lg">Pending</Badge>
+              <Badge variant="secondary" className="text-lg bg-yellow-500 text-yellow-foreground">Pending</Badge>
             </div>
           </CardContent>
         </Card>
@@ -301,7 +301,7 @@ const CommentsList = () => {
                   <div className="flex items-center space-x-2">
                     <Badge 
                       variant={comment.approved ? "default" : "secondary"}
-                      className={comment.approved ? "bg-green-500" : ""}
+                      className={comment.approved ? "bg-green-500" : "bg-yellow-500 text-yellow-foreground"}
                     >
                       {comment.approved ? "Approved" : "Pending"}
                     </Badge>

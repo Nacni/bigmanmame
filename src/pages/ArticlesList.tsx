@@ -10,18 +10,27 @@ import {
   Trash2, 
   Eye,
   Calendar,
-  FileText
+  FileText,
+  Filter,
+  ChevronDown,
+  MoreHorizontal
 } from 'lucide-react';
 import { supabase, Article } from '@/lib/supabase';
 import { Link } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
+import { toast } from '@/components/ui/sonner';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 const ArticlesList = () => {
   const [articles, setArticles] = useState<Article[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState<'all' | 'published' | 'draft'>('all');
-  const { toast } = useToast();
+  const [sortBy, setSortBy] = useState<'newest' | 'oldest'>('newest');
 
   useEffect(() => {
     fetchArticles();
@@ -29,20 +38,24 @@ const ArticlesList = () => {
 
   const fetchArticles = async () => {
     try {
-      const { data, error } = await supabase
+      let query = supabase
         .from('articles')
-        .select('*')
-        .order('created_at', { ascending: false });
+        .select('*');
+        
+      // Apply sorting
+      if (sortBy === 'newest') {
+        query = query.order('created_at', { ascending: false });
+      } else {
+        query = query.order('created_at', { ascending: true });
+      }
+
+      const { data, error } = await query;
 
       if (error) throw error;
       setArticles(data || []);
     } catch (error) {
       console.error('Error fetching articles:', error);
-      toast({
-        title: "Error",
-        description: "Failed to load articles.",
-        variant: "destructive",
-      });
+      toast.error("Failed to load articles.");
     } finally {
       setLoading(false);
     }
@@ -60,17 +73,10 @@ const ArticlesList = () => {
       if (error) throw error;
 
       setArticles(prev => prev.filter(article => article.id !== id));
-      toast({
-        title: "Deleted",
-        description: "Article deleted successfully.",
-      });
+      toast.success("Article deleted successfully.");
     } catch (error) {
       console.error('Error deleting article:', error);
-      toast({
-        title: "Error",
-        description: "Failed to delete article.",
-        variant: "destructive",
-      });
+      toast.error("Failed to delete article.");
     }
   };
 
@@ -80,6 +86,15 @@ const ArticlesList = () => {
     const matchesFilter = filter === 'all' || article.status === filter;
     return matchesSearch && matchesFilter;
   });
+
+  // Format date for display
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
 
   if (loading) {
     return (
@@ -101,51 +116,82 @@ const ArticlesList = () => {
         </div>
         
         <Link to="/admin/articles/new">
-          <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow text-base">
+          <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
             <Plus className="mr-2 h-4 w-4" />
             New Article
           </Button>
         </Link>
       </div>
 
-      {/* Filters */}
+      {/* Filters and Search */}
       <Card className="bg-card border-border">
         <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row gap-4">
-            <div className="flex-1">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
-                <Input
-                  placeholder="Search articles..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="pl-10 h-12 text-base bg-input border-border focus:border-primary"
-                />
-              </div>
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+              <Input
+                placeholder="Search articles..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10 h-10 bg-input border-border focus:border-primary"
+              />
             </div>
             
             <div className="flex gap-2">
-              <Button
-                variant={filter === 'all' ? 'default' : 'outline'}
-                onClick={() => setFilter('all')}
-                className="text-base"
-              >
-                All ({articles.length})
-              </Button>
-              <Button
-                variant={filter === 'published' ? 'default' : 'outline'}
-                onClick={() => setFilter('published')}
-                className="text-base"
-              >
-                Published ({articles.filter(a => a.status === 'published').length})
-              </Button>
-              <Button
-                variant={filter === 'draft' ? 'default' : 'outline'}
-                onClick={() => setFilter('draft')}
-                className="text-base"
-              >
-                Drafts ({articles.filter(a => a.status === 'draft').length})
-              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="h-10">
+                    <Filter className="mr-2 h-4 w-4" />
+                    Status
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setFilter('all')}>
+                    All Articles
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilter('published')}>
+                    Published
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setFilter('draft')}>
+                    Drafts
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="h-10">
+                    <Calendar className="mr-2 h-4 w-4" />
+                    Sort
+                    <ChevronDown className="ml-2 h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setSortBy('newest')}>
+                    Newest First
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setSortBy('oldest')}>
+                    Oldest First
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+          
+          {/* Stats */}
+          <div className="flex gap-4 mt-4 pt-4 border-t border-border">
+            <div className="text-center">
+              <p className="text-2xl font-bold text-foreground">{articles.length}</p>
+              <p className="text-sm text-muted-foreground">Total</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-green-500">{articles.filter(a => a.status === 'published').length}</p>
+              <p className="text-sm text-muted-foreground">Published</p>
+            </div>
+            <div className="text-center">
+              <p className="text-2xl font-bold text-yellow-500">{articles.filter(a => a.status === 'draft').length}</p>
+              <p className="text-sm text-muted-foreground">Drafts</p>
             </div>
           </div>
         </CardContent>
@@ -180,64 +226,72 @@ const ArticlesList = () => {
       ) : (
         <div className="space-y-4">
           {filteredArticles.map((article) => (
-            <Card key={article.id} className="bg-card border-border hover:shadow-neon transition-shadow duration-300">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between">
+            <Card key={article.id} className="bg-card border-border hover:shadow-md transition-all duration-300">
+              <CardContent className="p-5">
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="text-xl font-semibold text-foreground hover:text-primary transition-colors">
+                    <div className="flex items-start justify-between gap-3">
+                      <h3 className="text-lg font-semibold text-foreground hover:text-primary transition-colors">
                         <Link to={`/admin/articles/${article.id}/edit`}>
                           {article.title}
                         </Link>
                       </h3>
-                      <Badge variant={article.status === 'published' ? 'default' : 'secondary'}>
+                      <Badge 
+                        variant={article.status === 'published' ? 'default' : 'secondary'}
+                        className={article.status === 'published' ? 'bg-green-500' : 'bg-yellow-500'}
+                      >
                         {article.status}
                       </Badge>
                     </div>
                     
                     {article.excerpt && (
-                      <p className="text-base text-muted-foreground mb-3 line-clamp-2">
+                      <p className="text-sm text-muted-foreground mt-2 line-clamp-2">
                         {article.excerpt}
                       </p>
                     )}
                     
-                    <div className="flex items-center text-sm text-muted-foreground space-x-4">
-                      <div className="flex items-center">
-                        <Calendar className="mr-1 h-4 w-4" />
-                        {new Date(article.created_at).toLocaleDateString()}
+                    <div className="flex items-center text-xs text-muted-foreground mt-3">
+                      <div className="flex items-center mr-4">
+                        <Calendar className="mr-1 h-3 w-3" />
+                        {formatDate(article.created_at)}
                       </div>
                       <div>
-                        {article.content.length} characters
+                        {Math.ceil(article.content.length / 1500)} min read
                       </div>
                     </div>
                   </div>
 
-                  <div className="flex items-center space-x-2 ml-4">
+                  <div className="flex items-center space-x-2">
                     {article.status === 'published' && (
                       <Button
-                        variant="outline"
+                        variant="ghost"
                         size="sm"
                         onClick={() => window.open(`/blog/${article.slug}`, '_blank')}
-                        className="text-base"
+                        className="text-muted-foreground hover:text-foreground"
                       >
                         <Eye className="h-4 w-4" />
                       </Button>
                     )}
                     
                     <Link to={`/admin/articles/${article.id}/edit`}>
-                      <Button variant="outline" size="sm" className="text-base">
+                      <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
                         <Edit className="h-4 w-4" />
                       </Button>
                     </Link>
                     
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDelete(article.id, article.title)}
-                      className="text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground text-base"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
+                          <MoreHorizontal className="h-4 w-4" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem onClick={() => handleDelete(article.id, article.title)}>
+                          <Trash2 className="mr-2 h-4 w-4" />
+                          Delete
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
                   </div>
                 </div>
               </CardContent>
