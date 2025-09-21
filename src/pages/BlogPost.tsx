@@ -156,25 +156,42 @@ const BlogPost = () => {
   };
 
   const formatContent = (content: string) => {
-    // Convert markdown to HTML
-    const htmlContent = content
-      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
-      .replace(/\*(.*?)\*/g, '<em>$1</em>') // Italic
-      .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto my-6 rounded-lg shadow-lg" />') // Images
-      .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-primary hover:underline" target="_blank">$1</a>') // Links
-      .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold mt-8 mb-4 text-foreground">$1</h3>') // H3
-      .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-10 mb-5 text-foreground">$1</h2>') // H2
-      .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-12 mb-6 text-foreground">$1</h1>') // H1
-      .replace(/^\- (.*$)/gm, '<li class="ml-6 list-disc text-foreground my-2">$1</li>') // Unordered list items
-      .replace(/^\d+\. (.*$)/gm, '<li class="ml-6 list-decimal text-foreground my-2">$1</li>') // Ordered list items
-      .replace(/(?:<li class="ml-6 list-(?:disc|decimal) text-foreground my-2">.*<\/li>)+/gs, (match) => {
+    if (!content) return '';
+
+    // Convert markdown to HTML with proper styling
+    let htmlContent = content
+      // Bold text
+      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-foreground">$1</strong>')
+      // Italic text
+      .replace(/\*(.*?)\*/g, '<em class="italic text-foreground">$1</em>')
+      // Headings
+      .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold mt-6 mb-4 text-foreground">$1</h3>')
+      .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-8 mb-5 text-foreground">$1</h2>')
+      .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-10 mb-6 text-foreground">$1</h1>')
+      // Unordered lists
+      .replace(/^\s*-\s(.*)$/gm, '<li class="ml-6 list-disc text-foreground my-2">$1</li>')
+      // Ordered lists
+      .replace(/^\s*\d+\.\s(.*)$/gm, '<li class="ml-6 list-decimal text-foreground my-2">$1</li>')
+      // Wrap consecutive list items
+      .replace(/(<li class="ml-6 list-(?:disc|decimal) text-foreground my-2">.*<\/li>)+/gs, (match) => {
         const isOrdered = match.includes('list-decimal');
-        return `<${isOrdered ? 'ol' : 'ul'} class="my-6">${match}</${isOrdered ? 'ol' : 'ul'}>`;
-      }) // Wrap list items
-      .replace(/\n\n/g, '</p><p class="mb-6 text-foreground">') // Paragraphs
-      .replace(/\n/g, '<br />') // Line breaks
-      .replace(/^<p class="mb-6 text-foreground">/, '<p class="mb-6 text-foreground">') // First paragraph
-      .replace(/<p class="mb-6 text-foreground">$/, '</p>'); // Last paragraph
+        return `<${isOrdered ? 'ol' : 'ul'} class="my-4 space-y-1">${match}</${isOrdered ? 'ol' : 'ul'}>`;
+      })
+      // Images
+      .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto my-6 rounded-lg shadow-lg border border-border" />')
+      // Links
+      .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-primary hover:underline" target="_blank" rel="noopener noreferrer">$1</a>')
+      // Paragraphs - convert double newlines to paragraphs
+      .replace(/\n\n/g, '</p><p class="mb-4 text-foreground">')
+      // Line breaks - convert single newlines within paragraphs
+      .replace(/\n/g, '<br />')
+      // Wrap content in paragraph tags if not already wrapped
+      .replace(/^(?!<p|<h|<ul|<ol|<img)(.+)$/gm, '<p class="mb-4 text-foreground">$1</p>');
+
+    // Ensure the content starts and ends properly
+    if (!htmlContent.startsWith('<')) {
+      htmlContent = '<p class="mb-4 text-foreground">' + htmlContent + '</p>';
+    }
 
     return htmlContent;
   };
