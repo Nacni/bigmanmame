@@ -6,9 +6,9 @@
 
 @layer base {
   :root {
-    /* Core Colors - Light mode only */
-    --background: 0 0% 100%;                  /* #FFFFFF - Pure white */
-    --foreground: 0 0% 0%;                    /* #000000 - Pure black */
+    /* Core Colors - True Black mode */
+    --background: 0 0% 0%;                    /* #000000 - True black */
+    --foreground: 0 0% 100%;                  /* #FFFFFF - Pure white */
     
     /* Accent & Brand Colors */
     --primary: 100 100% 56%;                  /* #39FF14 - Neon green */
@@ -17,20 +17,20 @@
     --accent-foreground: 0 0% 0%;             /* #000000 - Black on green */
     
     /* Surface Colors */
-    --card: 0 0% 95%;                         /* #F2F2F2 - Light gray */
-    --card-foreground: 0 0% 0%;               /* #000000 - Black text */
-    --muted: 0 0% 90%;                        /* #E6E6E6 - Very light gray */
-    --muted-foreground: 0 0% 20%;             /* #333333 - Dark gray */
+    --card: 0 0% 5%;                          /* #0D0D0D - Very dark gray */
+    --card-foreground: 0 0% 100%;             /* #FFFFFF - White text */
+    --muted: 0 0% 8%;                         /* #141414 - Very dark gray */
+    --muted-foreground: 0 0% 80%;             /* #CCCCCC - Light gray text */
     
     /* Interactive Elements */
-    --secondary: 0 0% 95%;                    /* #F2F2F2 - Light card background */
-    --secondary-foreground: 0 0% 0%;          /* #000000 - Black text */
-    --popover: 0 0% 95%;                      /* #F2F2F2 - Light popover */
-    --popover-foreground: 0 0% 0%;            /* #000000 - Black text */
+    --secondary: 0 0% 6%;                     /* #0F0F0F - Very dark card background */
+    --secondary-foreground: 0 0% 100%;        /* #FFFFFF - White text */
+    --popover: 0 0% 5%;                       /* #0D0D0D - Very dark popover */
+    --popover-foreground: 0 0% 100%;          /* #FFFFFF - White text */
     
     /* UI Elements */
-    --border: 0 0% 80%;                       /* #CCCCCC - Light borders */
-    --input: 0 0% 95%;                        /* #F2F2F2 - Input background */
+    --border: 0 0% 15%;                       /* #262626 - Dark borders */
+    --input: 0 0% 6%;                         /* #0F0F0F - Very dark input background */
     --ring: 100 100% 56%;                     /* #39FF14 - Focus ring */
     --destructive: 0 84.2% 60.2%;            /* #f56565 - Error red */
     --destructive-foreground: 210 40% 98%;   /* #f7fafc - Light text */
