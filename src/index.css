@@ -6,9 +6,9 @@
 
 @layer base {
   :root {
-    /* Core Colors */
-    --background: 0 0% 0%;                    /* #000000 - Pure black */
-    --foreground: 0 0% 100%;                  /* #FFFFFF - Pure white */
+    /* Core Colors - Light mode only */
+    --background: 0 0% 100%;                  /* #FFFFFF - Pure white */
+    --foreground: 0 0% 0%;                    /* #000000 - Pure black */
     
     /* Accent & Brand Colors */
     --primary: 100 100% 56%;                  /* #39FF14 - Neon green */
@@ -17,20 +17,20 @@
     --accent-foreground: 0 0% 0%;             /* #000000 - Black on green */
     
     /* Surface Colors */
-    --card: 0 0% 6.7%;                        /* #111111 - Very dark gray */
-    --card-foreground: 0 0% 100%;             /* #FFFFFF - White text */
-    --muted: 0 0% 10.2%;                      /* #1A1A1A - Dark gray */
-    --muted-foreground: 0 0% 80%;             /* #CCCCCC - Light gray */
+    --card: 0 0% 95%;                         /* #F2F2F2 - Light gray */
+    --card-foreground: 0 0% 0%;               /* #000000 - Black text */
+    --muted: 0 0% 90%;                        /* #E6E6E6 - Very light gray */
+    --muted-foreground: 0 0% 20%;             /* #333333 - Dark gray */
     
     /* Interactive Elements */
-    --secondary: 0 0% 6.7%;                   /* #111111 - Card background */
-    --secondary-foreground: 0 0% 100%;        /* #FFFFFF - White text */
-    --popover: 0 0% 6.7%;                     /* #111111 - Dark popover */
-    --popover-foreground: 0 0% 100%;          /* #FFFFFF - White text */
+    --secondary: 0 0% 95%;                    /* #F2F2F2 - Light card background */
+    --secondary-foreground: 0 0% 0%;          /* #000000 - Black text */
+    --popover: 0 0% 95%;                      /* #F2F2F2 - Light popover */
+    --popover-foreground: 0 0% 0%;            /* #000000 - Black text */
     
     /* UI Elements */
-    --border: 0 0% 20%;                       /* #333333 - Subtle borders */
-    --input: 0 0% 6.7%;                       /* #111111 - Input background */
+    --border: 0 0% 80%;                       /* #CCCCCC - Light borders */
+    --input: 0 0% 95%;                        /* #F2F2F2 - Input background */
     --ring: 100 100% 56%;                     /* #39FF14 - Focus ring */
     --destructive: 0 84.2% 60.2%;            /* #f56565 - Error red */
     --destructive-foreground: 210 40% 98%;   /* #f7fafc - Light text */
@@ -63,51 +63,6 @@
     --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   }
-
-  .light {
-    /* Light mode colors */
-    --background: 0 0% 100%;                  /* #FFFFFF - Pure white */
-    --foreground: 0 0% 0%;                    /* #000000 - Pure black */
-    
-    /* Surface Colors */
-    --card: 0 0% 95%;                         /* #F2F2F2 - Light gray */
-    --card-foreground: 0 0% 0%;               /* #000000 - Black text */
-    --muted: 0 0% 90%;                        /* #E6E6E6 - Very light gray */
-    --muted-foreground: 0 0% 20%;             /* #333333 - Dark gray */
-    
-    /* Interactive Elements */
-    --secondary: 0 0% 95%;                    /* #F2F2F2 - Light card background */
-    --secondary-foreground: 0 0% 0%;          /* #000000 - Black text */
-    --popover: 0 0% 95%;                      /* #F2F2F2 - Light popover */
-    --popover-foreground: 0 0% 0%;            /* #000000 - Black text */
-    
-    /* UI Elements */
-    --border: 0 0% 80%;                       /* #CCCCCC - Light borders */
-    --input: 0 0% 95%;                        /* #F2F2F2 - Input background */
-  }
-
-  .dark {
-    /* Dark mode uses same colors as this is already a dark theme */
-    --background: 0 0% 0%;
-    --foreground: 0 0% 100%;
-    --card: 0 0% 6.7%;
-    --card-foreground: 0 0% 100%;
-    --popover: 0 0% 6.7%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 100 100% 56%;
-    --primary-foreground: 0 0% 0%;
-    --secondary: 0 0% 6.7%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 10.2%;
-    --muted-foreground: 0 0% 80%;
-    --accent: 100 100% 56%;
-    --accent-foreground: 0 0% 0%;
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-    --border: 0 0% 20%;
-    --input: 0 0% 6.7%;
-    --ring: 100 100% 56%;
-  }
 }
 
 @layer base {
@@ -137,6 +92,15 @@
   
   em {
     @apply text-foreground;
+  }
+  
+  /* Force text visibility for article content */
+  .article-content * {
+    color: hsl(var(--foreground)) !important;
+  }
+  
+  .article-content a {
+    color: hsl(var(--primary)) !important;
   }
   
   /* Neon glow utilities */

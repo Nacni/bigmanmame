@@ -163,36 +163,38 @@ const BlogPost = () => {
     // Convert markdown to HTML with proper styling
     let htmlContent = content
       // Bold text
-      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-foreground" style="color: hsl(var(--foreground))">$1</strong>')
       // Italic text
-      .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+      .replace(/\*(.*?)\*/g, '<em class="italic text-foreground" style="color: hsl(var(--foreground))">$1</em>')
       // Headings
-      .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold mt-6 mb-4">$1</h3>')
-      .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-8 mb-5">$1</h2>')
-      .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-10 mb-6">$1</h1>')
+      .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold mt-6 mb-4 text-foreground" style="color: hsl(var(--foreground))">$1</h3>')
+      .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-8 mb-5 text-foreground" style="color: hsl(var(--foreground))">$1</h2>')
+      .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-10 mb-6 text-foreground" style="color: hsl(var(--foreground))">$1</h1>')
       // Unordered lists
-      .replace(/^\s*-\s(.*)$/gm, '<li class="ml-6 list-disc my-2">$1</li>')
+      .replace(/^\s*-\s(.*)$/gm, '<li class="ml-6 list-disc my-2 text-foreground" style="color: hsl(var(--foreground))">$1</li>')
       // Ordered lists
-      .replace(/^\s*\d+\.\s(.*)$/gm, '<li class="ml-6 list-decimal my-2">$1</li>')
+      .replace(/^\s*\d+\.\s(.*)$/gm, '<li class="ml-6 list-decimal my-2 text-foreground" style="color: hsl(var(--foreground))">$1</li>')
       // Wrap consecutive list items
-      .replace(/(<li class="ml-6 list-(?:disc|decimal) my-2">.*<\/li>)+/gs, (match) => {
+      .replace(/(<li class="ml-6 list-(?:disc|decimal) my-2 text-foreground"(?: style="color: hsl\(var\(--foreground\)\)")?>.*?<\/li>)+/gs, (match) => {
         const isOrdered = match.includes('list-decimal');
-        return `<${isOrdered ? 'ol' : 'ul'} class="my-4 space-y-1">${match}</${isOrdered ? 'ol' : 'ul'}>`;
+        return `<${isOrdered ? 'ol' : 'ul'} class="my-4 space-y-1" style="color: hsl(var(--foreground))">${match}</${isOrdered ? 'ol' : 'ul'}>`;
       })
       // Images
       .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto my-6 rounded-lg shadow-lg border border-border" />')
       // Links
-      .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-primary hover:underline" target="_blank" rel="noopener noreferrer">$1</a>')
+      .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-primary hover:underline" style="color: hsl(var(--primary))" target="_blank" rel="noopener noreferrer">$1</a>')
       // Paragraphs - convert double newlines to paragraphs
-      .replace(/\n\n/g, '</p><p class="mb-4">')
+      .replace(/\n\n/g, '</p><p class="mb-4 text-foreground" style="color: hsl(var(--foreground))">')
       // Line breaks - convert single newlines within paragraphs
       .replace(/\n/g, '<br />')
+      // Handle text that comes after images
+      .replace(/(<img[^>]*>)\s*\n\s*([^<\n][^]*?)(?=<|$)/g, '$1<p class="mb-4 text-foreground" style="color: hsl(var(--foreground))">$2</p>')
       // Wrap content in paragraph tags if not already wrapped
-      .replace(/^(?!<p|<h|<ul|<ol|<img)(.+)$/gm, '<p class="mb-4">$1</p>');
+      .replace(/^(?!<p|<h|<ul|<ol|<img)(.+)$/gm, '<p class="mb-4 text-foreground" style="color: hsl(var(--foreground))">$1</p>');
 
     // Ensure the content starts and ends properly
     if (!htmlContent.startsWith('<')) {
-      htmlContent = '<p class="mb-4">' + htmlContent + '</p>';
+      htmlContent = '<p class="mb-4 text-foreground" style="color: hsl(var(--foreground))">' + htmlContent + '</p>';
     }
 
     return htmlContent;
@@ -200,12 +202,12 @@ const BlogPost = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-white text-black light">
         <Header />
         <div className="container mx-auto px-4 pt-32 pb-20">
           <div className="max-w-4xl mx-auto text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p className="text-muted-foreground mt-4 text-lg">{t('common.loading')}</p>
+            <p className="text-gray-700 mt-4 text-lg">{t('common.loading')}</p>
           </div>
         </div>
         <Footer />
@@ -215,21 +217,21 @@ const BlogPost = () => {
 
   if (error || !article) {
     return (
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-white text-black light">
         <Header />
         <div className="container mx-auto px-4 pt-32 pb-20">
           <div className="max-w-4xl mx-auto text-center">
-            <h1 className="text-4xl font-bold text-foreground mb-4">
+            <h1 className="text-4xl font-bold text-black mb-4">
               {error === 'Article not found' ? t('blog.articleNotFound') : t('common.error')}
             </h1>
-            <p className="text-xl text-muted-foreground mb-8">
+            <p className="text-xl text-gray-700 mb-8">
               {error === 'Article not found' 
                 ? t('blog.articleNotFoundMessage')
                 : t('blog.articleLoadError')
               }
             </p>
             <div className="space-x-4">
-              <Button onClick={() => navigate(-1)} variant="outline" className="text-base">
+              <Button onClick={() => navigate(-1)} variant="outline" className="text-base border-gray-300 text-gray-700 hover:bg-gray-100">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 {t('blog.goBack')}
               </Button>
@@ -247,17 +249,17 @@ const BlogPost = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-white text-black light">
       <Header />
       
       <main>
         {/* Article Header */}
-        <section className="pt-32 pb-16 bg-gradient-dark">
+        <section className="pt-32 pb-16 bg-white">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
               <div className="mb-6">
                 <Link to="/blog">
-                  <Button variant="outline" className="text-base">
+                  <Button variant="outline" className="text-base border-gray-300 text-gray-700 hover:bg-gray-100">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     {t('blog.backToArticles')}
                   </Button>
@@ -268,18 +270,18 @@ const BlogPost = () => {
                 {t('blog.publishedArticle')}
               </Badge>
 
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-black">
                 {article.title}
               </h1>
 
               {article.excerpt && (
-                <p className="text-xl text-muted-foreground mb-8 leading-relaxed">
+                <p className="text-xl text-gray-700 mb-8 leading-relaxed">
                   {article.excerpt}
                 </p>
               )}
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-border">
-                <div className="flex items-center text-muted-foreground space-x-6 text-base">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-gray-300">
+                <div className="flex items-center text-gray-600 space-x-6 text-base">
                   <div className="flex items-center">
                     <Calendar className="mr-2 h-5 w-5" />
                     {formatDate(article.created_at)}
@@ -293,7 +295,7 @@ const BlogPost = () => {
                 <Button
                   onClick={handleShare}
                   variant="outline"
-                  className="text-base"
+                  className="text-base border-gray-300 text-gray-700 hover:bg-gray-100"
                 >
                   <Share2 className="mr-2 h-4 w-4" />
                   {t('blog.shareArticle')}
@@ -308,7 +310,7 @@ const BlogPost = () => {
           <section className="py-0">
             <div className="container mx-auto px-4">
               <div className="max-w-5xl mx-auto">
-                <div className="aspect-video overflow-hidden rounded-lg shadow-neon">
+                <div className="aspect-video overflow-hidden rounded-lg">
                   <img
                     src={article.featured_image}
                     alt={article.title}
@@ -321,24 +323,24 @@ const BlogPost = () => {
         )}
 
         {/* Article Content */}
-        <section ref={contentRef} className={`py-16 fade-in-up ${contentVisible ? 'animate' : ''}`}>
+        <section ref={contentRef} className={`py-16 bg-white fade-in-up ${contentVisible ? 'animate' : ''}`}>
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
-              <article className="prose prose-lg prose-invert max-w-none">
+              <article className="prose prose-lg max-w-none">
                 <div 
-                  className="space-y-6"
+                  className="space-y-6 article-content"
                   dangerouslySetInnerHTML={{ __html: formatContent(article.content) }}
                 />
               </article>
 
               {/* Article Footer */}
-              <div className="mt-16 pt-8 border-t border-border">
+              <div className="mt-16 pt-8 border-t border-gray-300">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <p className="text-base text-muted-foreground">
+                    <p className="text-base text-gray-600">
                       {t('blog.publishedOn')} {formatDate(article.created_at)}
                     </p>
-                    <p className="text-sm text-muted-foreground mt-1">
+                    <p className="text-sm text-gray-600 mt-1">
                       {t('blog.byAuthor')}
                     </p>
                   </div>
@@ -347,14 +349,14 @@ const BlogPost = () => {
                     <Button
                       onClick={handleShare}
                       variant="outline"
-                      className="text-base"
+                      className="text-base border-gray-300 text-gray-700 hover:bg-gray-100"
                     >
                       <Share2 className="mr-2 h-4 w-4" />
                       {t('blog.share')}
                     </Button>
                     
                     <Link to="/blog">
-                      <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow text-base">
+                      <Button className="bg-primary text-primary-foreground hover:bg-primary/90 text-base">
                         {t('blog.moreArticles')}
                       </Button>
                     </Link>
@@ -366,12 +368,12 @@ const BlogPost = () => {
         </section>
 
         {/* Comments Section */}
-        <section className="py-16 bg-muted/50">
+        <section className="py-16 bg-gray-50">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
               <div className="flex items-center mb-10">
                 <MessageSquare className="h-6 w-6 mr-2 text-primary" />
-                <h2 className="text-3xl font-bold text-foreground">{t('blog.comments')}</h2>
+                <h2 className="text-3xl font-bold text-black">{t('blog.comments')}</h2>
               </div>
 
               {/* Comments List */}
@@ -382,39 +384,39 @@ const BlogPost = () => {
                   </div>
                 ) : comments.length > 0 ? (
                   comments.map((comment) => (
-                    <div key={comment.id} className="bg-card border border-border rounded-lg p-6">
+                    <div key={comment.id} className="bg-white border border-gray-300 rounded-lg p-6">
                       <div className="flex items-start">
                         <div className="bg-primary/10 rounded-full p-3 mr-4">
                           <User className="h-5 w-5 text-primary" />
                         </div>
                         <div className="flex-1">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2">
-                            <h3 className="font-semibold text-foreground">{comment.name}</h3>
-                            <span className="text-sm text-muted-foreground">
+                            <h3 className="font-semibold text-black">{comment.name}</h3>
+                            <span className="text-sm text-gray-600">
                               {formatDate(comment.created_at)}
                             </span>
                           </div>
-                          <p className="text-foreground">{comment.content}</p>
+                          <p className="text-gray-700">{comment.content}</p>
                         </div>
                       </div>
                     </div>
                   ))
                 ) : (
                   <div className="text-center py-8">
-                    <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-xl font-semibold text-foreground mb-2">{t('blog.noComments')}</h3>
-                    <p className="text-muted-foreground">{t('blog.beFirst')}</p>
+                    <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
+                    <h3 className="text-xl font-semibold text-black mb-2">{t('blog.noComments')}</h3>
+                    <p className="text-gray-600">{t('blog.beFirst')}</p>
                   </div>
                 )}
               </div>
 
               {/* Comment Form */}
-              <div className="bg-card border border-border rounded-lg p-6">
-                <h3 className="text-xl font-bold text-foreground mb-6">{t('blog.leaveComment')}</h3>
+              <div className="bg-white border border-gray-300 rounded-lg p-6">
+                <h3 className="text-xl font-bold text-black mb-6">{t('blog.leaveComment')}</h3>
                 <form onSubmit={handleCommentSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <label htmlFor="name" className="text-sm font-medium text-foreground">
+                      <label htmlFor="name" className="text-sm font-medium text-black">
                         {t('blog.name')} *
                       </label>
                       <Input
@@ -423,11 +425,11 @@ const BlogPost = () => {
                         onChange={(e) => setNewComment({...newComment, name: e.target.value})}
                         placeholder={t('blog.enterName')}
                         required
-                        className="bg-input border-border"
+                        className="bg-white border-gray-300 text-black"
                       />
                     </div>
                     <div className="space-y-2">
-                      <label htmlFor="email" className="text-sm font-medium text-foreground">
+                      <label htmlFor="email" className="text-sm font-medium text-black">
                         {t('blog.email')} *
                       </label>
                       <Input
@@ -437,12 +439,12 @@ const BlogPost = () => {
                         onChange={(e) => setNewComment({...newComment, email: e.target.value})}
                         placeholder={t('blog.enterEmail')}
                         required
-                        className="bg-input border-border"
+                        className="bg-white border-gray-300 text-black"
                       />
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <label htmlFor="comment" className="text-sm font-medium text-foreground">
+                    <label htmlFor="comment" className="text-sm font-medium text-black">
                       {t('blog.comment')} *
                     </label>
                     <Textarea
@@ -452,7 +454,7 @@ const BlogPost = () => {
                       placeholder={t('blog.enterComment')}
                       rows={4}
                       required
-                      className="bg-input border-border"
+                      className="bg-white border-gray-300 text-black"
                     />
                   </div>
                   <div className="flex justify-end">

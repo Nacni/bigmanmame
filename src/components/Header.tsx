@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Sun, Moon } from 'lucide-react';
+import { Menu, X } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 
 const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const location = useLocation();
-  const { currentLanguage, setCurrentLanguage, t } = useLanguage();
+  const { t } = useLanguage();
 
   useEffect(() => {
     const handleScroll = () => {
@@ -18,37 +17,6 @@ const Header = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  // Load theme preference from localStorage
-  useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'light') {
-      setIsDarkMode(false);
-      document.documentElement.classList.remove('dark');
-    } else {
-      setIsDarkMode(true);
-      document.documentElement.classList.add('dark');
-    }
-  }, []);
-
-  // Toggle dark/light mode
-  const toggleTheme = () => {
-    const newTheme = !isDarkMode;
-    setIsDarkMode(newTheme);
-    if (newTheme) {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  };
-
-  // Set language
-  const toggleLanguage = () => {
-    const newLanguage = currentLanguage === 'somali' ? 'english' : 'somali';
-    setCurrentLanguage(newLanguage);
-  };
 
   const navLinks = [
     { label: 'nav.home', href: '/' },
@@ -67,9 +35,6 @@ const Header = () => {
     }
     return location.pathname.startsWith(href);
   };
-
-  // Get current language name
-  const currentLanguageName = currentLanguage === 'somali' ? 'SO' : 'EN';
 
   return (
     <header 
@@ -99,23 +64,6 @@ const Header = () => {
             </Link>
           ))}
           
-          {/* Language Toggle */}
-          <button
-            onClick={toggleLanguage}
-            className="flex items-center space-x-1 text-foreground hover:text-primary transition-colors duration-300 font-medium text-lg"
-          >
-            <span>{currentLanguageName}</span>
-          </button>
-          
-          {/* Theme Toggle */}
-          <button
-            onClick={toggleTheme}
-            className="text-foreground hover:text-primary transition-colors duration-300"
-            aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {isDarkMode ? <Sun size={24} /> : <Moon size={24} />}
-          </button>
-          
           <Button 
             variant="default" 
             className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow transition-all duration-300"
@@ -127,21 +75,6 @@ const Header = () => {
 
         {/* Mobile Menu Button */}
         <div className="flex items-center space-x-4 lg:hidden">
-          <button
-            onClick={toggleLanguage}
-            className="text-foreground hover:text-primary transition-colors duration-300 font-medium"
-          >
-            {currentLanguageName}
-          </button>
-          
-          <button
-            onClick={toggleTheme}
-            className="text-foreground hover:text-primary transition-colors duration-300"
-            aria-label={isDarkMode ? "Switch to light mode" : "Switch to dark mode"}
-          >
-            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
-          
           <button
             className="text-foreground hover:text-primary transition-colors duration-300"
             onClick={() => setIsMenuOpen(!isMenuOpen)}
