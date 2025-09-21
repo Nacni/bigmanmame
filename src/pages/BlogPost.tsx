@@ -249,17 +249,17 @@ const BlogPost = () => {
   }
 
   return (
-    <div className="min-h-screen bg-white text-black light">
+    <div className="min-h-screen bg-background text-foreground">
       <Header />
       
       <main>
         {/* Article Header */}
-        <section className="pt-32 pb-16 bg-white">
+        <section className="pt-32 pb-16 bg-background">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
               <div className="mb-6">
                 <Link to="/blog">
-                  <Button variant="outline" className="text-base border-gray-300 text-gray-700 hover:bg-gray-100">
+                  <Button variant="outline" className="text-base">
                     <ArrowLeft className="mr-2 h-4 w-4" />
                     {t('blog.backToArticles')}
                   </Button>
@@ -270,18 +270,18 @@ const BlogPost = () => {
                 {t('blog.publishedArticle')}
               </Badge>
 
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-black">
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground">
                 {article.title}
               </h1>
 
               {article.excerpt && (
-                <p className="text-xl text-gray-700 mb-8 leading-relaxed">
+                <p className="text-xl mb-8 leading-relaxed text-foreground">
                   {article.excerpt}
                 </p>
               )}
 
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-gray-300">
-                <div className="flex items-center text-gray-600 space-x-6 text-base">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pt-6 border-t border-border">
+                <div className="flex items-center space-x-6 text-base">
                   <div className="flex items-center">
                     <Calendar className="mr-2 h-5 w-5" />
                     {formatDate(article.created_at)}
@@ -295,7 +295,7 @@ const BlogPost = () => {
                 <Button
                   onClick={handleShare}
                   variant="outline"
-                  className="text-base border-gray-300 text-gray-700 hover:bg-gray-100"
+                  className="text-base"
                 >
                   <Share2 className="mr-2 h-4 w-4" />
                   {t('blog.shareArticle')}
@@ -323,24 +323,25 @@ const BlogPost = () => {
         )}
 
         {/* Article Content */}
-        <section ref={contentRef} className={`py-16 bg-white fade-in-up ${contentVisible ? 'animate' : ''}`}>
+        <section ref={contentRef} className={`py-16 bg-background fade-in-up ${contentVisible ? 'animate' : ''}`}>
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
-              <article className="prose prose-lg max-w-none">
+              <article className="prose prose-lg max-w-none dark:prose-invert">
                 <div 
-                  className="space-y-6 article-content"
+                  className="space-y-6 article-content text-foreground"
+                  style={{ color: "hsl(var(--foreground))" }}
                   dangerouslySetInnerHTML={{ __html: formatContent(article.content) }}
                 />
               </article>
 
               {/* Article Footer */}
-              <div className="mt-16 pt-8 border-t border-gray-300">
+              <div className="mt-16 pt-8 border-t border-border">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <p className="text-base text-gray-600">
+                    <p className="text-base text-foreground">
                       {t('blog.publishedOn')} {formatDate(article.created_at)}
                     </p>
-                    <p className="text-sm text-gray-600 mt-1">
+                    <p className="text-sm text-foreground/80 mt-1">
                       {t('blog.byAuthor')}
                     </p>
                   </div>
@@ -349,7 +350,7 @@ const BlogPost = () => {
                     <Button
                       onClick={handleShare}
                       variant="outline"
-                      className="text-base border-gray-300 text-gray-700 hover:bg-gray-100"
+                      className="text-base"
                     >
                       <Share2 className="mr-2 h-4 w-4" />
                       {t('blog.share')}
@@ -368,12 +369,12 @@ const BlogPost = () => {
         </section>
 
         {/* Comments Section */}
-        <section className="py-16 bg-gray-50">
+        <section className="py-16 bg-muted">
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
               <div className="flex items-center mb-10">
                 <MessageSquare className="h-6 w-6 mr-2 text-primary" />
-                <h2 className="text-3xl font-bold text-black">{t('blog.comments')}</h2>
+                <h2 className="text-3xl font-bold text-foreground">{t('blog.comments')}</h2>
               </div>
 
               {/* Comments List */}
@@ -384,28 +385,28 @@ const BlogPost = () => {
                   </div>
                 ) : comments.length > 0 ? (
                   comments.map((comment) => (
-                    <div key={comment.id} className="bg-white border border-gray-300 rounded-lg p-6">
+                    <div key={comment.id} className="bg-background border border-border rounded-lg p-6">
                       <div className="flex items-start">
                         <div className="bg-primary/10 rounded-full p-3 mr-4">
                           <User className="h-5 w-5 text-primary" />
                         </div>
                         <div className="flex-1">
                           <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2">
-                            <h3 className="font-semibold text-black">{comment.name}</h3>
-                            <span className="text-sm text-gray-600">
+                            <h3 className="font-semibold text-foreground">{comment.name}</h3>
+                            <span className="text-sm text-foreground/70">
                               {formatDate(comment.created_at)}
                             </span>
                           </div>
-                          <p className="text-gray-700">{comment.content}</p>
+                          <p className="text-foreground/90">{comment.content}</p>
                         </div>
                       </div>
                     </div>
                   ))
                 ) : (
                   <div className="text-center py-8">
-                    <MessageSquare className="h-12 w-12 mx-auto text-gray-400 mb-4" />
-                    <h3 className="text-xl font-semibold text-black mb-2">{t('blog.noComments')}</h3>
-                    <p className="text-gray-600">{t('blog.beFirst')}</p>
+                    <MessageSquare className="h-12 w-12 mx-auto text-foreground/40 mb-4" />
+                    <h3 className="text-xl font-semibold text-foreground mb-2">{t('blog.noComments')}</h3>
+                    <p className="text-foreground/70">{t('blog.beFirst')}</p>
                   </div>
                 )}
               </div>
