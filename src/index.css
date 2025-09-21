@@ -64,6 +64,28 @@
     --transition-fast: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
+  .light {
+    /* Light mode colors */
+    --background: 0 0% 100%;                  /* #FFFFFF - Pure white */
+    --foreground: 0 0% 0%;                    /* #000000 - Pure black */
+    
+    /* Surface Colors */
+    --card: 0 0% 95%;                         /* #F2F2F2 - Light gray */
+    --card-foreground: 0 0% 0%;               /* #000000 - Black text */
+    --muted: 0 0% 90%;                        /* #E6E6E6 - Very light gray */
+    --muted-foreground: 0 0% 20%;             /* #333333 - Dark gray */
+    
+    /* Interactive Elements */
+    --secondary: 0 0% 95%;                    /* #F2F2F2 - Light card background */
+    --secondary-foreground: 0 0% 0%;          /* #000000 - Black text */
+    --popover: 0 0% 95%;                      /* #F2F2F2 - Light popover */
+    --popover-foreground: 0 0% 0%;            /* #000000 - Black text */
+    
+    /* UI Elements */
+    --border: 0 0% 80%;                       /* #CCCCCC - Light borders */
+    --input: 0 0% 95%;                        /* #F2F2F2 - Input background */
+  }
+
   .dark {
     /* Dark mode uses same colors as this is already a dark theme */
     --background: 0 0% 0%;
@@ -98,7 +120,11 @@
   }
   
   h1, h2, h3, h4, h5, h6 {
-    @apply font-bold tracking-tight;
+    @apply font-bold tracking-tight text-foreground;
+  }
+  
+  p {
+    @apply text-foreground;
   }
   
   /* Neon glow utilities */

@@ -9,6 +9,7 @@ import Footer from '@/components/Footer';
 import { useScrollAnimation } from '@/hooks/use-scroll-animation';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const BlogPost = () => {
   const [article, setArticle] = useState<Article | null>(null);
@@ -21,6 +22,7 @@ const BlogPost = () => {
   const { slug } = useParams();
   const navigate = useNavigate();
   const [contentRef, contentVisible] = useScrollAnimation();
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (slug) {
@@ -109,10 +111,10 @@ const BlogPost = () => {
       setNewComment({ name: '', email: '', content: '' });
       
       // Show success message
-      alert('Comment submitted! It will appear after approval.');
+      alert(t('blog.commentSubmitted'));
     } catch (error) {
       console.error('Error submitting comment:', error);
-      alert('Failed to submit comment. Please try again.');
+      alert(t('blog.commentError'));
     } finally {
       setCommentLoading(false);
     }
@@ -130,7 +132,7 @@ const BlogPost = () => {
     const wordsPerMinute = 200;
     const wordCount = content.split(' ').length;
     const readingTime = Math.ceil(wordCount / wordsPerMinute);
-    return `${readingTime} min read`;
+    return `${readingTime} ${t('blog.readingTime')}`;
   };
 
   const handleShare = async () => {
@@ -203,7 +205,7 @@ const BlogPost = () => {
         <div className="container mx-auto px-4 pt-32 pb-20">
           <div className="max-w-4xl mx-auto text-center">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-            <p className="text-muted-foreground mt-4 text-lg">Loading article...</p>
+            <p className="text-muted-foreground mt-4 text-lg">{t('common.loading')}</p>
           </div>
         </div>
         <Footer />
@@ -218,22 +220,22 @@ const BlogPost = () => {
         <div className="container mx-auto px-4 pt-32 pb-20">
           <div className="max-w-4xl mx-auto text-center">
             <h1 className="text-4xl font-bold text-foreground mb-4">
-              {error === 'Article not found' ? 'Article Not Found' : 'Something Went Wrong'}
+              {error === 'Article not found' ? t('blog.articleNotFound') : t('common.error')}
             </h1>
             <p className="text-xl text-muted-foreground mb-8">
               {error === 'Article not found' 
-                ? 'The article you\'re looking for doesn\'t exist or has been removed.'
-                : 'We encountered an error while loading the article.'
+                ? t('blog.articleNotFoundMessage')
+                : t('blog.articleLoadError')
               }
             </p>
             <div className="space-x-4">
               <Button onClick={() => navigate(-1)} variant="outline" className="text-base">
                 <ArrowLeft className="mr-2 h-4 w-4" />
-                Go Back
+                {t('blog.goBack')}
               </Button>
               <Link to="/blog">
                 <Button className="bg-primary text-primary-foreground hover:bg-primary/90 text-base">
-                  View All Articles
+                  {t('blog.viewAllArticles')}
                 </Button>
               </Link>
             </div>
@@ -257,13 +259,13 @@ const BlogPost = () => {
                 <Link to="/blog">
                   <Button variant="outline" className="text-base">
                     <ArrowLeft className="mr-2 h-4 w-4" />
-                    Back to Articles
+                    {t('blog.backToArticles')}
                   </Button>
                 </Link>
               </div>
               
               <Badge className="mb-6 bg-primary text-primary-foreground text-base">
-                Published Article
+                {t('blog.publishedArticle')}
               </Badge>
 
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold mb-6 text-foreground">
@@ -294,7 +296,7 @@ const BlogPost = () => {
                   className="text-base"
                 >
                   <Share2 className="mr-2 h-4 w-4" />
-                  Share Article
+                  {t('blog.shareArticle')}
                 </Button>
               </div>
             </div>
@@ -324,7 +326,7 @@ const BlogPost = () => {
             <div className="max-w-4xl mx-auto">
               <article className="prose prose-lg prose-invert max-w-none">
                 <div 
-                  className="space-y-6 text-foreground"
+                  className="space-y-6 text-foreground [&_p]:text-foreground [&_h1]:text-foreground [&_h2]:text-foreground [&_h3]:text-foreground [&_li]:text-foreground"
                   dangerouslySetInnerHTML={{ __html: formatContent(article.content) }}
                 />
               </article>
@@ -334,10 +336,10 @@ const BlogPost = () => {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <p className="text-base text-muted-foreground">
-                      Published on {formatDate(article.created_at)}
+                      {t('blog.publishedOn')} {formatDate(article.created_at)}
                     </p>
                     <p className="text-sm text-muted-foreground mt-1">
-                      By Cabdalla Xuseen Cali
+                      {t('blog.byAuthor')}
                     </p>
                   </div>
                   
@@ -348,12 +350,12 @@ const BlogPost = () => {
                       className="text-base"
                     >
                       <Share2 className="mr-2 h-4 w-4" />
-                      Share
+                      {t('blog.share')}
                     </Button>
                     
                     <Link to="/blog">
                       <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow text-base">
-                        More Articles
+                        {t('blog.moreArticles')}
                       </Button>
                     </Link>
                   </div>
@@ -369,7 +371,7 @@ const BlogPost = () => {
             <div className="max-w-4xl mx-auto">
               <div className="flex items-center mb-10">
                 <MessageSquare className="h-6 w-6 mr-2 text-primary" />
-                <h2 className="text-3xl font-bold text-foreground">Comments</h2>
+                <h2 className="text-3xl font-bold text-foreground">{t('blog.comments')}</h2>
               </div>
 
               {/* Comments List */}
@@ -400,40 +402,40 @@ const BlogPost = () => {
                 ) : (
                   <div className="text-center py-8">
                     <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-                    <h3 className="text-xl font-semibold text-foreground mb-2">No comments yet</h3>
-                    <p className="text-muted-foreground">Be the first to share your thoughts!</p>
+                    <h3 className="text-xl font-semibold text-foreground mb-2">{t('blog.noComments')}</h3>
+                    <p className="text-muted-foreground">{t('blog.beFirst')}</p>
                   </div>
                 )}
               </div>
 
               {/* Comment Form */}
               <div className="bg-card border border-border rounded-lg p-6">
-                <h3 className="text-xl font-bold text-foreground mb-6">Leave a Comment</h3>
+                <h3 className="text-xl font-bold text-foreground mb-6">{t('blog.leaveComment')}</h3>
                 <form onSubmit={handleCommentSubmit} className="space-y-4">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label htmlFor="name" className="text-sm font-medium text-foreground">
-                        Name *
+                        {t('blog.name')} *
                       </label>
                       <Input
                         id="name"
                         value={newComment.name}
                         onChange={(e) => setNewComment({...newComment, name: e.target.value})}
-                        placeholder="Your name"
+                        placeholder={t('blog.enterName')}
                         required
                         className="bg-input border-border"
                       />
                     </div>
                     <div className="space-y-2">
                       <label htmlFor="email" className="text-sm font-medium text-foreground">
-                        Email *
+                        {t('blog.email')} *
                       </label>
                       <Input
                         id="email"
                         type="email"
                         value={newComment.email}
                         onChange={(e) => setNewComment({...newComment, email: e.target.value})}
-                        placeholder="your.email@example.com"
+                        placeholder={t('blog.enterEmail')}
                         required
                         className="bg-input border-border"
                       />
@@ -441,13 +443,13 @@ const BlogPost = () => {
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="comment" className="text-sm font-medium text-foreground">
-                      Comment *
+                      {t('blog.comment')} *
                     </label>
                     <Textarea
                       id="comment"
                       value={newComment.content}
                       onChange={(e) => setNewComment({...newComment, content: e.target.value})}
-                      placeholder="Share your thoughts..."
+                      placeholder={t('blog.enterComment')}
                       rows={4}
                       required
                       className="bg-input border-border"
@@ -462,10 +464,10 @@ const BlogPost = () => {
                       {commentLoading ? (
                         <>
                           <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
-                          Submitting...
+                          {t('blog.submitting')}
                         </>
                       ) : (
-                        'Submit Comment'
+                        t('blog.submitComment')
                       )}
                     </Button>
                   </div>

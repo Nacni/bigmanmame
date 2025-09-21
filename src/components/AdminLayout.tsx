@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { supabase, Article } from '@/lib/supabase';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 const AdminLayout = () => {
   const [user, setUser] = useState<any>(null);
@@ -25,6 +26,7 @@ const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const { t } = useLanguage();
 
   useEffect(() => {
     checkUser();
@@ -72,11 +74,11 @@ const AdminLayout = () => {
   };
 
   const menuItems = [
-    { label: 'Dashboard', href: '/admin/dashboard', icon: BarChart3 },
-    { label: 'Articles', href: '/admin/articles', icon: FileText },
-    { label: 'Comments', href: '/admin/comments', icon: MessageSquare },
-    { label: 'Media', href: '/admin/media', icon: Image },
-    { label: 'Settings', href: '/admin/settings', icon: Settings },
+    { label: 'admin.dashboard', href: '/admin/dashboard', icon: BarChart3 },
+    { label: 'admin.articles', href: '/admin/articles', icon: FileText },
+    { label: 'admin.comments', href: '/admin/comments', icon: MessageSquare },
+    { label: 'admin.media', href: '/admin/media', icon: Image },
+    { label: 'admin.settings', href: '/admin/settings', icon: Settings },
   ];
 
   if (loading) {
@@ -119,7 +121,7 @@ const AdminLayout = () => {
                 onClick={() => setSidebarOpen(false)}
               >
                 <Icon className="mr-3 h-5 w-5" />
-                {item.label}
+                {t(item.label)}
               </Link>
             );
           })}
@@ -136,7 +138,7 @@ const AdminLayout = () => {
             className="w-full justify-start text-base"
           >
             <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
+            {t('admin.logout')}
           </Button>
         </div>
       </div>
@@ -163,10 +165,10 @@ const AdminLayout = () => {
               </button>
               <div>
                 <h2 className="text-2xl font-bold text-foreground">
-                  {isDashboard ? 'Dashboard' : 'Content Management'}
+                  {isDashboard ? t('admin.dashboard') : 'Content Management'}
                 </h2>
                 <p className="text-base text-muted-foreground">
-                  Manage your website content and media
+                  {t('admin.manageContent')}
                 </p>
               </div>
             </div>
@@ -174,7 +176,7 @@ const AdminLayout = () => {
             <Link to="/admin/articles/new">
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow text-base">
                 <Plus className="mr-2 h-4 w-4" />
-                New Article
+                {t('admin.createArticle')}
               </Button>
             </Link>
           </div>
@@ -182,92 +184,7 @@ const AdminLayout = () => {
 
         {/* Content */}
         <main className="p-6">
-          {isDashboard ? (
-            <div className="space-y-6">
-              {/* Stats Cards */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Card className="bg-card border-border">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base font-medium text-muted-foreground">Total Articles</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-primary">{articles.length}</div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-card border-border">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base font-medium text-muted-foreground">Published</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-primary">
-                      {articles.filter(a => a.status === 'published').length}
-                    </div>
-                  </CardContent>
-                </Card>
-
-                <Card className="bg-card border-border">
-                  <CardHeader className="pb-2">
-                    <CardTitle className="text-base font-medium text-muted-foreground">Drafts</CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="text-3xl font-bold text-primary">
-                      {articles.filter(a => a.status === 'draft').length}
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Recent Articles */}
-              <Card className="bg-card border-border">
-                <CardHeader>
-                  <CardTitle className="text-xl font-bold text-foreground">Recent Articles</CardTitle>
-                  <CardDescription className="text-base text-muted-foreground">
-                    Your latest content updates
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  {articles.length === 0 ? (
-                    <div className="text-center py-8">
-                      <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
-                      <p className="text-base text-muted-foreground">No articles yet. Create your first article!</p>
-                      <Link to="/admin/articles/new">
-                        <Button className="mt-4 bg-primary text-primary-foreground hover:bg-primary/90">
-                          <Plus className="mr-2 h-4 w-4" />
-                          Create Article
-                        </Button>
-                      </Link>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      {articles.map((article) => (
-                        <div key={article.id} className="flex items-center justify-between p-4 border border-border rounded-lg">
-                          <div className="flex-1">
-                            <h3 className="text-lg font-semibold text-foreground">{article.title}</h3>
-                            <p className="text-base text-muted-foreground mt-1">
-                              {new Date(article.created_at).toLocaleDateString()}
-                            </p>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <Badge variant={article.status === 'published' ? 'default' : 'secondary'}>
-                              {article.status}
-                            </Badge>
-                            <Link to={`/admin/articles/${article.id}/edit`}>
-                              <Button variant="outline" size="sm">
-                                <Edit className="h-4 w-4" />
-                              </Button>
-                            </Link>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
-            <Outlet />
-          )}
+          <Outlet />
         </main>
       </div>
     </div>
