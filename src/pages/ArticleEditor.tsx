@@ -6,9 +6,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, Eye, ArrowLeft, Trash2, Plus, Upload, X, Calendar, Tag, Hash, FileText } from 'lucide-react';
+import { Save, Eye, ArrowLeft, Trash2, Plus, Upload, X, Calendar, Tag, Hash, FileText, Image as ImageIcon } from 'lucide-react';
 import { supabase, Article } from '@/lib/supabase';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from '@/components/ui/sonner';
@@ -27,6 +26,7 @@ const ArticleEditor = () => {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [previewMode, setPreviewMode] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { id } = useParams();
   const navigate = useNavigate();
@@ -124,9 +124,9 @@ const ArticleEditor = () => {
         const content = article.content || '';
         const imageMarkdown = `\n![Image](${publicUrl})\n`;
         const newContent = content.substring(0, start) + imageMarkdown + content.substring(end);
-      
+        
         setArticle(prev => ({ ...prev, content: newContent }));
-      
+        
         toast.success("Image uploaded and inserted successfully.");
       }
     } catch (error) {
@@ -143,7 +143,7 @@ const ArticleEditor = () => {
     try {
       const publicUrl = await handleImageUpload(file);
       setArticle(prev => ({ ...prev, featured_image: publicUrl }));
-    
+      
       toast.success("Featured image uploaded successfully.");
     } catch (error) {
       toast.error("Failed to upload featured image.");
@@ -307,19 +307,9 @@ const ArticleEditor = () => {
         </Alert>
       )}
 
-      <Tabs defaultValue="content" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="content" className="flex items-center justify-center">
-            <FileText className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Content</span>
-          </TabsTrigger>
-          <TabsTrigger value="settings" className="flex items-center justify-center">
-            <Tag className="mr-2 h-4 w-4" />
-            <span className="hidden sm:inline">Settings</span>
-          </TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="content" className="space-y-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Main Content Editor */}
+        <div className="lg:col-span-2 space-y-6">
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -328,32 +318,35 @@ const ArticleEditor = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-6">
+              {/* Title Section */}
               <div className="space-y-2">
-                <Label htmlFor="title">Title</Label>
+                <Label htmlFor="title" className="text-base font-medium">Title</Label>
                 <Input
                   id="title"
                   value={article.title || ''}
                   onChange={(e) => handleTitleChange(e.target.value)}
                   placeholder="Enter article title"
-                  className="bg-input border-border h-10"
+                  className="bg-input border-border h-12 text-base px-4"
                 />
               </div>
 
+              {/* Excerpt Section */}
               <div className="space-y-2">
-                <Label htmlFor="excerpt">Excerpt</Label>
+                <Label htmlFor="excerpt" className="text-base font-medium">Excerpt</Label>
                 <Textarea
                   id="excerpt"
                   value={article.excerpt || ''}
                   onChange={(e) => setArticle(prev => ({ ...prev, excerpt: e.target.value }))}
                   placeholder="Enter a brief description of your article"
                   rows={3}
-                  className="bg-input border-border resize-none"
+                  className="bg-input border-border resize-none text-base px-4 py-3"
                 />
               </div>
 
+              {/* Content Section */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
-                  <Label htmlFor="content">Content</Label>
+                  <Label htmlFor="content" className="text-base font-medium">Content</Label>
                   <Button
                     type="button"
                     variant="outline"
@@ -368,23 +361,27 @@ const ArticleEditor = () => {
                       </div>
                     ) : (
                       <>
-                        <Upload className="h-3 w-3 mr-1" />
+                        <ImageIcon className="h-4 w-4 mr-2" />
                         Insert Image
                       </>
                     )}
                   </Button>
                 </div>
-                <RichTextEditor
-                  value={article.content || ''}
-                  onChange={(content) => setArticle(prev => ({ ...prev, content }))}
-                  placeholder="Write your content here..."
-                />
+                
+                <div className="border border-border rounded-lg overflow-hidden">
+                  <RichTextEditor
+                    value={article.content || ''}
+                    onChange={(content) => setArticle(prev => ({ ...prev, content }))}
+                    placeholder="Write your content here..."
+                  />
+                </div>
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-        
-        <TabsContent value="settings" className="space-y-6">
+        </div>
+
+        {/* Settings Panel */}
+        <div className="space-y-6">
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -394,7 +391,7 @@ const ArticleEditor = () => {
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-2">
-                <Label htmlFor="slug">Slug</Label>
+                <Label htmlFor="slug" className="text-base font-medium">Slug</Label>
                 <Input
                   id="slug"
                   value={article.slug || ''}
@@ -405,7 +402,7 @@ const ArticleEditor = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="featured_image">Featured Image</Label>
+                <Label htmlFor="featured_image" className="text-base font-medium">Featured Image</Label>
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1">
                     <Input
@@ -455,7 +452,7 @@ const ArticleEditor = () => {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
+                <Label htmlFor="status" className="text-base font-medium">Status</Label>
                 <Select
                   value={article.status || 'draft'}
                   onValueChange={(value) => setArticle(prev => ({ ...prev, status: value as any }))}
@@ -471,8 +468,60 @@ const ArticleEditor = () => {
               </div>
             </CardContent>
           </Card>
-        </TabsContent>
-      </Tabs>
+
+          {/* Preview Card */}
+          <Card className="bg-card border-border">
+            <CardHeader>
+              <CardTitle className="flex items-center">
+                <Eye className="mr-2 h-5 w-5" />
+                Preview
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-bold text-lg text-foreground mb-2">
+                    {article.title || "Article Title"}
+                  </h3>
+                  {article.excerpt && (
+                    <p className="text-muted-foreground text-sm">
+                      {article.excerpt}
+                    </p>
+                  )}
+                </div>
+                
+                {article.featured_image && (
+                  <div className="mt-3">
+                    <img
+                      src={article.featured_image}
+                      alt="Featured"
+                      className="w-full h-32 object-cover rounded-lg border border-border"
+                    />
+                  </div>
+                )}
+                
+                <div className="text-sm text-muted-foreground">
+                  {article.content ? (
+                    <div 
+                      className="prose prose-invert max-w-none"
+                      dangerouslySetInnerHTML={{ 
+                        __html: article.content
+                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                          .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                          .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="my-2 max-w-full h-auto rounded" />')
+                          .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-primary">$1</a>')
+                          .replace(/\n/g, '<br />')
+                      }} 
+                    />
+                  ) : (
+                    <p className="italic">No content yet. Start writing your article...</p>
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
 
       <div className="flex justify-between">
         <Button

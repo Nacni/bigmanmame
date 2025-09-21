@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Bold, Italic, List, ListOrdered, Image, Link, Minus, Heading1, Heading2, Heading3, Eye } from 'lucide-react';
+import { Bold, Italic, List, ListOrdered, Image, Link, Minus, Heading1, Heading2, Heading3, Eye, Edit3 } from 'lucide-react';
 
 interface RichTextEditorProps {
   value: string;
@@ -96,7 +96,7 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
   return (
     <div className="border border-border rounded-lg bg-card">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-1 p-2 border-b border-border bg-muted rounded-t-lg">
+      <div className="flex flex-wrap items-center gap-1 p-3 border-b border-border bg-muted rounded-t-lg">
         <Button
           type="button"
           variant="ghost"
@@ -186,16 +186,25 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
           onClick={() => setIsPreview(!isPreview)}
           title="Toggle Preview"
         >
-          <Eye className="h-4 w-4 mr-1" />
-          {isPreview ? 'Edit' : 'Preview'}
+          {isPreview ? (
+            <>
+              <Edit3 className="h-4 w-4 mr-1" />
+              Edit
+            </>
+          ) : (
+            <>
+              <Eye className="h-4 w-4 mr-1" />
+              Preview
+            </>
+          )}
         </Button>
       </div>
 
       {/* Editor/Preview Area */}
-      <div className="p-2 min-h-[300px]">
+      <div className="p-0 min-h-[400px]">
         {isPreview ? (
           <div 
-            className="prose prose-invert max-w-none p-4 min-h-[300px] text-foreground bg-input rounded-b-lg border border-border"
+            className="prose prose-invert max-w-none p-4 min-h-[400px] text-foreground bg-input rounded-b-lg"
             dangerouslySetInnerHTML={{ __html: formatContent(value || '') }}
           />
         ) : (
@@ -204,7 +213,7 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder || "Write your content here..."}
-            className="min-h-[300px] resize-none bg-input border border-border p-4 focus-visible:ring-0 rounded-b-lg text-foreground"
+            className="min-h-[400px] resize-none bg-input border-0 p-4 focus-visible:ring-0 rounded-b-lg text-foreground text-base"
           />
         )}
       </div>
