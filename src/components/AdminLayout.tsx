@@ -17,7 +17,6 @@ import {
 } from 'lucide-react';
 import { supabase, Article } from '@/lib/supabase';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
-import { useLanguage } from '@/contexts/LanguageContext';
 
 const AdminLayout = () => {
   const [user, setUser] = useState<any>(null);
@@ -26,7 +25,6 @@ const AdminLayout = () => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
-  const { t } = useLanguage();
 
   useEffect(() => {
     checkUser();
@@ -74,11 +72,11 @@ const AdminLayout = () => {
   };
 
   const menuItems = [
-    { label: 'admin.dashboard', href: '/admin/dashboard', icon: BarChart3 },
-    { label: 'admin.articles', href: '/admin/articles', icon: FileText },
-    { label: 'admin.comments', href: '/admin/comments', icon: MessageSquare },
-    { label: 'admin.media', href: '/admin/media', icon: Image },
-    { label: 'admin.settings', href: '/admin/settings', icon: Settings },
+    { label: 'Dashboard', href: '/admin/dashboard', icon: BarChart3 },
+    { label: 'Articles', href: '/admin/articles', icon: FileText },
+    { label: 'Comments', href: '/admin/comments', icon: MessageSquare },
+    { label: 'Media', href: '/admin/media', icon: Image },
+    { label: 'Settings', href: '/admin/settings', icon: Settings },
   ];
 
   if (loading) {
@@ -121,7 +119,7 @@ const AdminLayout = () => {
                 onClick={() => setSidebarOpen(false)}
               >
                 <Icon className="mr-3 h-5 w-5" />
-                {t(item.label)}
+                {item.label}
               </Link>
             );
           })}
@@ -138,7 +136,7 @@ const AdminLayout = () => {
             className="w-full justify-start text-base"
           >
             <LogOut className="mr-2 h-4 w-4" />
-            {t('admin.logout')}
+            Sign Out
           </Button>
         </div>
       </div>
@@ -165,10 +163,10 @@ const AdminLayout = () => {
               </button>
               <div>
                 <h2 className="text-2xl font-bold text-foreground">
-                  {isDashboard ? t('admin.dashboard') : 'Content Management'}
+                  {isDashboard ? 'Dashboard' : 'Content Management'}
                 </h2>
                 <p className="text-base text-muted-foreground">
-                  {t('admin.manageContent')}
+                  Manage your website content and media
                 </p>
               </div>
             </div>
@@ -176,7 +174,7 @@ const AdminLayout = () => {
             <Link to="/admin/articles/new">
               <Button className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow text-base">
                 <Plus className="mr-2 h-4 w-4" />
-                {t('admin.createArticle')}
+                New Article
               </Button>
             </Link>
           </div>

@@ -127,6 +127,18 @@
     @apply text-foreground;
   }
   
+  li {
+    @apply text-foreground;
+  }
+  
+  strong {
+    @apply text-foreground;
+  }
+  
+  em {
+    @apply text-foreground;
+  }
+  
   /* Neon glow utilities */
   .glow-primary {
     box-shadow: var(--glow-primary);

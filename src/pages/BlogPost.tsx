@@ -163,19 +163,19 @@ const BlogPost = () => {
     // Convert markdown to HTML with proper styling
     let htmlContent = content
       // Bold text
-      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-foreground">$1</strong>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
       // Italic text
-      .replace(/\*(.*?)\*/g, '<em class="italic text-foreground">$1</em>')
+      .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
       // Headings
-      .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold mt-6 mb-4 text-foreground">$1</h3>')
-      .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-8 mb-5 text-foreground">$1</h2>')
-      .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-10 mb-6 text-foreground">$1</h1>')
+      .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold mt-6 mb-4">$1</h3>')
+      .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-8 mb-5">$1</h2>')
+      .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-10 mb-6">$1</h1>')
       // Unordered lists
-      .replace(/^\s*-\s(.*)$/gm, '<li class="ml-6 list-disc text-foreground my-2">$1</li>')
+      .replace(/^\s*-\s(.*)$/gm, '<li class="ml-6 list-disc my-2">$1</li>')
       // Ordered lists
-      .replace(/^\s*\d+\.\s(.*)$/gm, '<li class="ml-6 list-decimal text-foreground my-2">$1</li>')
+      .replace(/^\s*\d+\.\s(.*)$/gm, '<li class="ml-6 list-decimal my-2">$1</li>')
       // Wrap consecutive list items
-      .replace(/(<li class="ml-6 list-(?:disc|decimal) text-foreground my-2">.*<\/li>)+/gs, (match) => {
+      .replace(/(<li class="ml-6 list-(?:disc|decimal) my-2">.*<\/li>)+/gs, (match) => {
         const isOrdered = match.includes('list-decimal');
         return `<${isOrdered ? 'ol' : 'ul'} class="my-4 space-y-1">${match}</${isOrdered ? 'ol' : 'ul'}>`;
       })
@@ -184,15 +184,15 @@ const BlogPost = () => {
       // Links
       .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-primary hover:underline" target="_blank" rel="noopener noreferrer">$1</a>')
       // Paragraphs - convert double newlines to paragraphs
-      .replace(/\n\n/g, '</p><p class="mb-4 text-foreground">')
+      .replace(/\n\n/g, '</p><p class="mb-4">')
       // Line breaks - convert single newlines within paragraphs
       .replace(/\n/g, '<br />')
       // Wrap content in paragraph tags if not already wrapped
-      .replace(/^(?!<p|<h|<ul|<ol|<img)(.+)$/gm, '<p class="mb-4 text-foreground">$1</p>');
+      .replace(/^(?!<p|<h|<ul|<ol|<img)(.+)$/gm, '<p class="mb-4">$1</p>');
 
     // Ensure the content starts and ends properly
     if (!htmlContent.startsWith('<')) {
-      htmlContent = '<p class="mb-4 text-foreground">' + htmlContent + '</p>';
+      htmlContent = '<p class="mb-4">' + htmlContent + '</p>';
     }
 
     return htmlContent;
@@ -326,7 +326,7 @@ const BlogPost = () => {
             <div className="max-w-4xl mx-auto">
               <article className="prose prose-lg prose-invert max-w-none">
                 <div 
-                  className="space-y-6 text-foreground [&_p]:text-foreground [&_h1]:text-foreground [&_h2]:text-foreground [&_h3]:text-foreground [&_li]:text-foreground"
+                  className="space-y-6"
                   dangerouslySetInnerHTML={{ __html: formatContent(article.content) }}
                 />
               </article>

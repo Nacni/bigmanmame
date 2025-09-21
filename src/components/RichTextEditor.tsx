@@ -47,25 +47,9 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
   };
 
   const insertImage = () => {
-    const imageUrl = prompt('Enter image URL (or leave blank to upload):');
+    const imageUrl = prompt('Enter image URL:');
     if (imageUrl) {
       insertMarkdown(`![Image](${imageUrl})`, false, '');
-    } else {
-      // Trigger file upload
-      const fileInput = document.createElement('input');
-      fileInput.type = 'file';
-      fileInput.accept = 'image/*';
-      fileInput.onchange = (e) => {
-        const target = e.target as HTMLInputElement;
-        if (target.files && target.files[0]) {
-          const file = target.files[0];
-          // In a real implementation, you would upload the file and get a URL
-          // For now, we'll just show a placeholder
-          const placeholderUrl = URL.createObjectURL(file);
-          insertMarkdown(`![Image](${placeholderUrl})`, false, '');
-        }
-      };
-      fileInput.click();
     }
   };
 

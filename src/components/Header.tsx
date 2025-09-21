@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { Menu, X, Sun, Moon, Globe } from 'lucide-react';
+import { Menu, X, Sun, Moon } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useLanguage } from '@/contexts/LanguageContext';
 
@@ -8,7 +8,6 @@ const Header = () => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
-  const [isLanguageMenuOpen, setIsLanguageMenuOpen] = useState(false);
   const location = useLocation();
   const { currentLanguage, setCurrentLanguage, t } = useLanguage();
 
@@ -46,9 +45,9 @@ const Header = () => {
   };
 
   // Set language
-  const setLanguage = (language: string) => {
-    setCurrentLanguage(language);
-    setIsLanguageMenuOpen(false);
+  const toggleLanguage = () => {
+    const newLanguage = currentLanguage === 'somali' ? 'english' : 'somali';
+    setCurrentLanguage(newLanguage);
   };
 
   const navLinks = [
@@ -62,14 +61,6 @@ const Header = () => {
     { label: 'nav.contact', href: '/contact' },
   ];
 
-  const languages = [
-    { code: 'somali', name: 'Somali', native: 'Soomaali' },
-    { code: 'arabic', name: 'Arabic', native: 'العربية' },
-    { code: 'spanish', name: 'Spanish', native: 'Español' },
-    { code: 'swahili', name: 'Swahili', native: 'Kiswahili' },
-    { code: 'french', name: 'French', native: 'Français' },
-  ];
-
   const isActive = (href: string) => {
     if (href === '/') {
       return location.pathname === '/';
@@ -78,7 +69,7 @@ const Header = () => {
   };
 
   // Get current language name
-  const currentLanguageName = languages.find(lang => lang.code === currentLanguage)?.native || 'Soomaali';
+  const currentLanguageName = currentLanguage === 'somali' ? 'SO' : 'EN';
 
   return (
     <header 
@@ -108,34 +99,13 @@ const Header = () => {
             </Link>
           ))}
           
-          {/* Language Selector */}
-          <div className="relative">
-            <button
-              onClick={() => setIsLanguageMenuOpen(!isLanguageMenuOpen)}
-              className="flex items-center space-x-1 text-foreground hover:text-primary transition-colors duration-300 font-medium"
-            >
-              <Globe size={20} />
-              <span>{currentLanguageName}</span>
-            </button>
-            
-            {isLanguageMenuOpen && (
-              <div className="absolute right-0 mt-2 w-48 bg-card border border-border rounded-lg shadow-lg z-50">
-                {languages.map((language) => (
-                  <button
-                    key={language.code}
-                    onClick={() => setLanguage(language.code)}
-                    className={`block w-full text-left px-4 py-2 text-base ${
-                      currentLanguage === language.code
-                        ? 'text-primary bg-primary/10'
-                        : 'text-foreground hover:bg-muted'
-                    }`}
-                  >
-                    {language.native}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Language Toggle */}
+          <button
+            onClick={toggleLanguage}
+            className="flex items-center space-x-1 text-foreground hover:text-primary transition-colors duration-300 font-medium text-lg"
+          >
+            <span>{currentLanguageName}</span>
+          </button>
           
           {/* Theme Toggle */}
           <button
@@ -157,6 +127,13 @@ const Header = () => {
 
         {/* Mobile Menu Button */}
         <div className="flex items-center space-x-4 lg:hidden">
+          <button
+            onClick={toggleLanguage}
+            className="text-foreground hover:text-primary transition-colors duration-300 font-medium"
+          >
+            {currentLanguageName}
+          </button>
+          
           <button
             onClick={toggleTheme}
             className="text-foreground hover:text-primary transition-colors duration-300"
@@ -192,38 +169,6 @@ const Header = () => {
                 {t(link.label)}
               </Link>
             ))}
-            
-            {/* Mobile Language Selector */}
-            <div className="pt-4 border-t border-border">
-              <div className="flex items-center justify-between">
-                <span className="text-foreground font-medium">{t('nav.language')}</span>
-                <button
-                  onClick={() => setIsLanguageMenuOpen(!isLanguageMenuOpen)}
-                  className="flex items-center space-x-1 text-foreground hover:text-primary transition-colors duration-300"
-                >
-                  <Globe size={16} />
-                  <span>{currentLanguageName}</span>
-                </button>
-              </div>
-              
-              {isLanguageMenuOpen && (
-                <div className="mt-2 space-y-2">
-                  {languages.map((language) => (
-                    <button
-                      key={language.code}
-                      onClick={() => setLanguage(language.code)}
-                      className={`block w-full text-left px-3 py-2 text-base ${
-                        currentLanguage === language.code
-                          ? 'text-primary bg-primary/10'
-                          : 'text-foreground hover:bg-muted'
-                      }`}
-                    >
-                      {language.native}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
             
             <Button 
               variant="default" 
