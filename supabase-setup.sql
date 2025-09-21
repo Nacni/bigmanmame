@@ -25,27 +25,66 @@ CREATE TABLE IF NOT EXISTS media (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 3. Create storage bucket for media files
+-- 3. Create comments table
+CREATE TABLE IF NOT EXISTS comments (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  article_id UUID REFERENCES articles(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  email TEXT NOT NULL,
+  content TEXT NOT NULL,
+  approved BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 4. Create storage bucket for media files
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('media', 'media', true)
 ON CONFLICT (id) DO NOTHING;
 
--- 4. Enable Row Level Security
+-- 5. Enable Row Level Security
 ALTER TABLE articles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE media ENABLE ROW LEVEL SECURITY;
+ALTER TABLE comments ENABLE ROW LEVEL SECURITY;
 
--- 5. Create security policies for articles
+-- 6. Drop existing policies if they exist
+DROP POLICY IF EXISTS "Users can manage their own articles" ON articles;
+DROP POLICY IF EXISTS "Anyone can read published articles" ON articles;
+DROP POLICY IF EXISTS "Authenticated users can manage media" ON media;
+DROP POLICY IF EXISTS "Authenticated users can upload media" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can view media" ON storage.objects;
+DROP POLICY IF EXISTS "Authenticated users can delete media" ON storage.objects;
+DROP POLICY IF EXISTS "Anyone can insert comments" ON comments;
+DROP POLICY IF EXISTS "Users can manage comments on their articles" ON comments;
+DROP POLICY IF EXISTS "Anyone can read approved comments" ON comments;
+
+-- 7. Create security policies for articles
 CREATE POLICY "Users can manage their own articles" ON articles
   FOR ALL USING (auth.uid() = author_id);
 
 CREATE POLICY "Anyone can read published articles" ON articles
   FOR SELECT USING (status = 'published');
 
--- 6. Create security policies for media
+-- 8. Create security policies for media
 CREATE POLICY "Authenticated users can manage media" ON media
   FOR ALL USING (auth.uid() IS NOT NULL);
 
--- 7. Create storage policies
+-- 9. Create security policies for comments
+CREATE POLICY "Anyone can insert comments" ON comments
+  FOR INSERT WITH CHECK (true);
+
+CREATE POLICY "Users can manage comments on their articles" ON comments
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM articles 
+      WHERE articles.id = comments.article_id 
+      AND articles.author_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Anyone can read approved comments" ON comments
+  FOR SELECT USING (approved = true);
+
+-- 10. Create storage policies
 CREATE POLICY "Authenticated users can upload media" ON storage.objects
   FOR INSERT WITH CHECK (bucket_id = 'media' AND auth.uid() IS NOT NULL);
 
@@ -55,7 +94,7 @@ CREATE POLICY "Anyone can view media" ON storage.objects
 CREATE POLICY "Authenticated users can delete media" ON storage.objects
   FOR DELETE USING (bucket_id = 'media' AND auth.uid() IS NOT NULL);
 
--- 8. Create auto-update function for timestamps
+-- 11. Create auto-update function for timestamps
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -64,14 +103,14 @@ BEGIN
 END;
 $$ language 'plpgsql';
 
--- 9. Create trigger for auto-updating timestamps
+-- 12. Create trigger for auto-updating timestamps
 DROP TRIGGER IF EXISTS update_articles_updated_at ON articles;
 CREATE TRIGGER update_articles_updated_at 
   BEFORE UPDATE ON articles 
   FOR EACH ROW 
   EXECUTE FUNCTION update_updated_at_column();
 
--- 10. Insert a welcome article (will be created when first user signs up)
+-- 13. Insert a welcome article (will be created when first user signs up)
 -- This will be inserted automatically when you create your first admin user
 
 -- ✅ SETUP COMPLETE!

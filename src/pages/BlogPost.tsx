@@ -1,17 +1,23 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Calendar, Clock, ArrowLeft, Share2 } from 'lucide-react';
-import { supabase, Article } from '@/lib/supabase';
+import { Calendar, Clock, ArrowLeft, Share2, User, Mail, MessageSquare } from 'lucide-react';
+import { supabase, Article, Comment } from '@/lib/supabase';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import Header from '@/components/Header';
 import Footer from '@/components/Footer';
 import { useScrollAnimation } from '@/hooks/use-scroll-animation';
+import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 
 const BlogPost = () => {
   const [article, setArticle] = useState<Article | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState({ name: '', email: '', content: '' });
+  const [commentLoading, setCommentLoading] = useState(false);
+  const [commentsLoading, setCommentsLoading] = useState(true);
   const { slug } = useParams();
   const navigate = useNavigate();
   const [contentRef, contentVisible] = useScrollAnimation();
@@ -19,6 +25,7 @@ const BlogPost = () => {
   useEffect(() => {
     if (slug) {
       fetchArticle();
+      fetchComments();
     }
   }, [slug]);
 
@@ -45,6 +52,69 @@ const BlogPost = () => {
       setError('Failed to load article');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchComments = async () => {
+    if (!slug) return;
+    
+    try {
+      // First get the article ID
+      const { data: articleData, error: articleError } = await supabase
+        .from('articles')
+        .select('id')
+        .eq('slug', slug)
+        .single();
+
+      if (articleError) throw articleError;
+
+      // Then fetch approved comments for this article
+      const { data, error } = await supabase
+        .from('comments')
+        .select('*')
+        .eq('article_id', articleData.id)
+        .eq('approved', true)
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      setComments(data || []);
+    } catch (error) {
+      console.error('Error fetching comments:', error);
+    } finally {
+      setCommentsLoading(false);
+    }
+  };
+
+  const handleCommentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!article || !newComment.name || !newComment.email || !newComment.content) return;
+
+    setCommentLoading(true);
+    try {
+      const { error } = await supabase
+        .from('comments')
+        .insert([
+          {
+            article_id: article.id,
+            name: newComment.name,
+            email: newComment.email,
+            content: newComment.content,
+            approved: false // Comments need approval
+          }
+        ]);
+
+      if (error) throw error;
+
+      // Reset form
+      setNewComment({ name: '', email: '', content: '' });
+      
+      // Show success message
+      alert('Comment submitted! It will appear after approval.');
+    } catch (error) {
+      console.error('Error submitting comment:', error);
+      alert('Failed to submit comment. Please try again.');
+    } finally {
+      setCommentLoading(false);
     }
   };
 
@@ -86,15 +156,27 @@ const BlogPost = () => {
   };
 
   const formatContent = (content: string) => {
-    // Simple formatting - split by paragraphs and preserve line breaks
-    return content.split('\n').map((paragraph, index) => {
-      if (paragraph.trim() === '') return null;
-      return (
-        <p key={index} className="text-lg text-foreground leading-relaxed mb-6">
-          {paragraph}
-        </p>
-      );
-    }).filter(Boolean);
+    // Convert markdown to HTML
+    const htmlContent = content
+      .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
+      .replace(/\*(.*?)\*/g, '<em>$1</em>') // Italic
+      .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto my-6 rounded-lg shadow-lg" />') // Images
+      .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-primary hover:underline" target="_blank">$1</a>') // Links
+      .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold mt-8 mb-4 text-foreground">$1</h3>') // H3
+      .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-10 mb-5 text-foreground">$1</h2>') // H2
+      .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-12 mb-6 text-foreground">$1</h1>') // H1
+      .replace(/^\- (.*$)/gm, '<li class="ml-6 list-disc text-foreground my-2">$1</li>') // Unordered list items
+      .replace(/^\d+\. (.*$)/gm, '<li class="ml-6 list-decimal text-foreground my-2">$1</li>') // Ordered list items
+      .replace(/(?:<li class="ml-6 list-(?:disc|decimal) text-foreground my-2">.*<\/li>)+/gs, (match) => {
+        const isOrdered = match.includes('list-decimal');
+        return `<${isOrdered ? 'ol' : 'ul'} class="my-6">${match}</${isOrdered ? 'ol' : 'ul'}>`;
+      }) // Wrap list items
+      .replace(/\n\n/g, '</p><p class="mb-6 text-foreground">') // Paragraphs
+      .replace(/\n/g, '<br />') // Line breaks
+      .replace(/^<p class="mb-6 text-foreground">/, '<p class="mb-6 text-foreground">') // First paragraph
+      .replace(/<p class="mb-6 text-foreground">$/, '</p>'); // Last paragraph
+
+    return htmlContent;
   };
 
   if (loading) {
@@ -224,9 +306,10 @@ const BlogPost = () => {
           <div className="container mx-auto px-4">
             <div className="max-w-4xl mx-auto">
               <article className="prose prose-lg prose-invert max-w-none">
-                <div className="space-y-6">
-                  {formatContent(article.content)}
-                </div>
+                <div 
+                  className="space-y-6 text-foreground"
+                  dangerouslySetInnerHTML={{ __html: formatContent(article.content) }}
+                />
               </article>
 
               {/* Article Footer */}
@@ -258,6 +341,118 @@ const BlogPost = () => {
                     </Link>
                   </div>
                 </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Comments Section */}
+        <section className="py-16 bg-muted/50">
+          <div className="container mx-auto px-4">
+            <div className="max-w-4xl mx-auto">
+              <div className="flex items-center mb-10">
+                <MessageSquare className="h-6 w-6 mr-2 text-primary" />
+                <h2 className="text-3xl font-bold text-foreground">Comments</h2>
+              </div>
+
+              {/* Comments List */}
+              <div className="space-y-6 mb-12">
+                {commentsLoading ? (
+                  <div className="flex justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : comments.length > 0 ? (
+                  comments.map((comment) => (
+                    <div key={comment.id} className="bg-card border border-border rounded-lg p-6">
+                      <div className="flex items-start">
+                        <div className="bg-primary/10 rounded-full p-3 mr-4">
+                          <User className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2">
+                            <h3 className="font-semibold text-foreground">{comment.name}</h3>
+                            <span className="text-sm text-muted-foreground">
+                              {formatDate(comment.created_at)}
+                            </span>
+                          </div>
+                          <p className="text-foreground">{comment.content}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="text-center py-8">
+                    <MessageSquare className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                    <h3 className="text-xl font-semibold text-foreground mb-2">No comments yet</h3>
+                    <p className="text-muted-foreground">Be the first to share your thoughts!</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Comment Form */}
+              <div className="bg-card border border-border rounded-lg p-6">
+                <h3 className="text-xl font-bold text-foreground mb-6">Leave a Comment</h3>
+                <form onSubmit={handleCommentSubmit} className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label htmlFor="name" className="text-sm font-medium text-foreground">
+                        Name *
+                      </label>
+                      <Input
+                        id="name"
+                        value={newComment.name}
+                        onChange={(e) => setNewComment({...newComment, name: e.target.value})}
+                        placeholder="Your name"
+                        required
+                        className="bg-input border-border"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label htmlFor="email" className="text-sm font-medium text-foreground">
+                        Email *
+                      </label>
+                      <Input
+                        id="email"
+                        type="email"
+                        value={newComment.email}
+                        onChange={(e) => setNewComment({...newComment, email: e.target.value})}
+                        placeholder="your.email@example.com"
+                        required
+                        className="bg-input border-border"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="comment" className="text-sm font-medium text-foreground">
+                      Comment *
+                    </label>
+                    <Textarea
+                      id="comment"
+                      value={newComment.content}
+                      onChange={(e) => setNewComment({...newComment, content: e.target.value})}
+                      placeholder="Share your thoughts..."
+                      rows={4}
+                      required
+                      className="bg-input border-border"
+                    />
+                  </div>
+                  <div className="flex justify-end">
+                    <Button 
+                      type="submit" 
+                      disabled={commentLoading || !newComment.name || !newComment.email || !newComment.content}
+                      className="bg-primary text-primary-foreground hover:bg-primary/90"
+                    >
+                      {commentLoading ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
+                          Submitting...
+                        </>
+                      ) : (
+                        'Submit Comment'
+                      )}
+                    </Button>
+                  </div>
+                </form>
               </div>
             </div>
           </div>

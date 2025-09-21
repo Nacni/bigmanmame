@@ -12,7 +12,8 @@ import {
   Eye,
   BarChart3,
   Menu,
-  X
+  X,
+  MessageSquare
 } from 'lucide-react';
 import { supabase, Article } from '@/lib/supabase';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
@@ -73,6 +74,7 @@ const AdminLayout = () => {
   const menuItems = [
     { label: 'Dashboard', href: '/admin/dashboard', icon: BarChart3 },
     { label: 'Articles', href: '/admin/articles', icon: FileText },
+    { label: 'Comments', href: '/admin/comments', icon: MessageSquare },
     { label: 'Media', href: '/admin/media', icon: Image },
     { label: 'Settings', href: '/admin/settings', icon: Settings },
   ];

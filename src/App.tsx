@@ -20,6 +20,7 @@ import ArticlesList from "./pages/ArticlesList";
 import ArticleEditor from "./pages/ArticleEditor";
 import MediaManager from "./pages/MediaManager";
 import AdminSettings from "./pages/AdminSettings";
+import CommentsList from "./pages/CommentsList";
 
 const queryClient = new QueryClient();
 
@@ -68,6 +69,7 @@ const App = () => (
             <Route path="articles" element={<ArticlesList />} />
             <Route path="articles/new" element={<ArticleEditor />} />
             <Route path="articles/:id/edit" element={<ArticleEditor />} />
+            <Route path="comments" element={<CommentsList />} />
             <Route path="media" element={<MediaManager />} />
             <Route path="settings" element={<AdminSettings />} />
           </Route>
