@@ -64,37 +64,63 @@ const VideoTest = () => {
       const videoData = {
         url: testUrl,
         title: testTitle,
-        alt_text: testTitle,
-        category: 'Test'
+        alt_text: testTitle
+        // Removed category to avoid schema cache issue
       };
       
       addLog(`Inserting: ${JSON.stringify(videoData)}`);
       
-      const { data, error } = await supabase
+      // Try to insert without category field
+      let result = await supabase
         .from('media')
         .insert([videoData])
         .select()
         .single();
 
-      if (error) {
-        addLog(`Insert failed: ${error.message}`);
-        addLog(`Error details: ${JSON.stringify(error)}`);
-        setResult(`Insert failed: ${error.message}`);
+      // If it's a schema cache error, try again with a different approach
+      if (result.error && result.error.message.includes('schema cache')) {
+        addLog("Schema cache issue detected. Trying to refresh...");
+        // Try to refresh the schema cache
+        await supabase.from('media').select('id').limit(1);
+        // Retry the insert
+        result = await supabase
+          .from('media')
+          .insert([videoData])
+          .select()
+          .single();
+      }
+
+      if (result.error) {
+        addLog(`Insert failed: ${result.error.message}`);
+        addLog(`Error details: ${JSON.stringify(result.error)}`);
+        setResult(`Insert failed: ${result.error.message}`);
         return;
       }
       
-      addLog(`Insert successful! ID: ${data.id}`);
-      setResult(`Insert successful! ID: ${data.id}`);
+      addLog(`Insert successful! ID: ${result.data.id}`);
+      setResult(`Insert successful! ID: ${result.data.id}`);
       
       // Test deletion to clean up
       addLog('Testing deletion...');
-      const { error: deleteError } = await supabase
+      let deleteResult = await supabase
         .from('media')
         .delete()
-        .eq('id', data.id);
+        .eq('id', result.data.id);
         
-      if (deleteError) {
-        addLog(`Delete failed: ${deleteError.message}`);
+      // If it's a schema cache error, try again
+      if (deleteResult.error && deleteResult.error.message.includes('schema cache')) {
+        addLog("Schema cache issue detected during deletion. Trying to refresh...");
+        // Try to refresh the schema cache
+        await supabase.from('media').select('id').limit(1);
+        // Retry the deletion
+        deleteResult = await supabase
+          .from('media')
+          .delete()
+          .eq('id', result.data.id);
+      }
+        
+      if (deleteResult.error) {
+        addLog(`Delete failed: ${deleteResult.error.message}`);
       } else {
         addLog('Delete successful');
       }

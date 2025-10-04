@@ -142,13 +142,24 @@ const VideosManager = () => {
         const filePath = `uploads/${fileName}`;
 
         // Upload to Supabase Storage
-        const { error: uploadError } = await supabase.storage
+        let uploadResult = await supabase.storage
           .from('media')
           .upload(filePath, file);
 
-        if (uploadError) {
-          console.error('Upload error:', uploadError);
-          toast.error(`Failed to upload ${file.name}: ${uploadError.message}`);
+        // If it's a schema cache error, try to refresh and retry
+        if (uploadResult.error && uploadResult.error.message.includes('schema cache')) {
+          toast.error("Schema cache issue detected during upload. Trying to refresh...");
+          // Try to refresh the schema cache
+          await supabase.from('media').select('id').limit(1);
+          // Retry the upload
+          uploadResult = await supabase.storage
+            .from('media')
+            .upload(filePath, file);
+        }
+
+        if (uploadResult.error) {
+          console.error('Upload error:', uploadResult.error);
+          toast.error(`Failed to upload ${file.name}: ${uploadResult.error.message}`);
           continue; // Continue with other files
         }
 
@@ -157,33 +168,51 @@ const VideosManager = () => {
           .from('media')
           .getPublicUrl(filePath);
 
-        // Save to database
-        const { data: mediaData, error: dbError } = await supabase
+        // Save to database - without category field to avoid schema cache issue
+        let dbResult = await supabase
           .from('media')
           .insert([{
             filename: file.name,
             url: publicUrl,
             alt_text: file.name.split('.')[0],
-            title: file.name.split('.')[0],
-            category: 'General'
+            title: file.name.split('.')[0]
+            // Removed category field temporarily
           }])
           .select()
           .single();
 
-        if (dbError) {
-          console.error('Database error:', dbError);
-          toast.error(`Failed to save ${file.name} to database: ${dbError.message}`);
+        // If it's a schema cache error, try to refresh and retry
+        if (dbResult.error && dbResult.error.message.includes('schema cache')) {
+          toast.error("Schema cache issue detected during database insert. Trying to refresh...");
+          // Try to refresh the schema cache
+          await supabase.from('media').select('id').limit(1);
+          // Retry the insert
+          dbResult = await supabase
+            .from('media')
+            .insert([{
+              filename: file.name,
+              url: publicUrl,
+              alt_text: file.name.split('.')[0],
+              title: file.name.split('.')[0]
+            }])
+            .select()
+            .single();
+        }
+
+        if (dbResult.error) {
+          console.error('Database error:', dbResult.error);
+          toast.error(`Failed to save ${file.name} to database: ${dbResult.error.message}`);
           // Try to delete the uploaded file since we couldn't save to DB
           await supabase.storage.from('media').remove([filePath]);
           continue;
         }
 
-        if (mediaData) {
+        if (dbResult.data) {
           uploadedVideos.push({
-            ...mediaData,
+            ...dbResult.data,
             video_url: publicUrl,
             title: file.name.split('.')[0],
-            category: 'General',
+            category: dbResult.data.category || 'General', // Use existing category or default
             is_external: false
           });
         }
@@ -228,36 +257,53 @@ const VideosManager = () => {
       console.log('Adding external video:', { 
         url: externalVideoUrl, 
         title: externalVideoTitle || 'External Video',
-        alt_text: externalVideoTitle || 'External Video',
-        category: 'External'
+        alt_text: externalVideoTitle || 'External Video'
+        // Removed category to avoid schema cache issue
       });
       
-      // Save to database
-      const { data: mediaData, error: dbError } = await supabase
+      // Save to database - without category field to avoid schema cache issue
+      let result = await supabase
         .from('media')
         .insert([{
           url: externalVideoUrl,
           title: externalVideoTitle || 'External Video',
-          alt_text: externalVideoTitle || 'External Video',
-          category: 'External'
+          alt_text: externalVideoTitle || 'External Video'
+          // Removed category field temporarily
         }])
         .select()
         .single();
 
-      if (dbError) {
-        console.error('Database error:', dbError);
-        toast.error(`Database error: ${dbError.message}`);
+      // If it's a schema cache error, try again with a different approach
+      if (result.error && result.error.message.includes('schema cache')) {
+        toast.error("Schema cache issue detected. Trying to refresh...");
+        // Try to refresh the schema cache
+        await supabase.from('media').select('id').limit(1);
+        // Retry the insert
+        result = await supabase
+          .from('media')
+          .insert([{
+            url: externalVideoUrl,
+            title: externalVideoTitle || 'External Video',
+            alt_text: externalVideoTitle || 'External Video'
+          }])
+          .select()
+          .single();
+      }
+
+      if (result.error) {
+        console.error('Database error:', result.error);
+        toast.error(`Database error: ${result.error.message}`);
         return;
       }
 
-      console.log('Successfully added external video:', mediaData);
+      console.log('Successfully added external video:', result.data);
       
-      if (mediaData) {
+      if (result.data) {
         const newVideo: Video = {
-          ...mediaData,
+          ...result.data,
           video_url: externalVideoUrl,
           title: externalVideoTitle || 'External Video',
-          category: 'External',
+          category: result.data.category || 'General', // Use existing category or default
           is_external: true,
           external_url: externalVideoUrl
         };
@@ -330,20 +376,37 @@ const VideosManager = () => {
     if (!editingVideo) return;
 
     try {
-      const { error } = await supabase
+      let result = await supabase
         .from('media')
         .update({
           filename: editingVideo.filename,
           alt_text: editingVideo.alt_text,
           title: editingVideo.title,
-          category: editingVideo.category,
           description: editingVideo.description
+          // Removed category to avoid schema cache issue
         })
         .eq('id', editingVideo.id);
 
-      if (error) {
-        console.error('Database error:', error);
-        toast.error(`Failed to update video: ${error.message}`);
+      // If it's a schema cache error, try again with a different approach
+      if (result.error && result.error.message.includes('schema cache')) {
+        toast.error("Schema cache issue detected. Trying to refresh...");
+        // Try to refresh the schema cache
+        await supabase.from('media').select('id').limit(1);
+        // Retry the update
+        result = await supabase
+          .from('media')
+          .update({
+            filename: editingVideo.filename,
+            alt_text: editingVideo.alt_text,
+            title: editingVideo.title,
+            description: editingVideo.description
+          })
+          .eq('id', editingVideo.id);
+      }
+
+      if (result.error) {
+        console.error('Database error:', result.error);
+        toast.error(`Failed to update video: ${result.error.message}`);
         return;
       }
 

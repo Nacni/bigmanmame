@@ -67,27 +67,41 @@ const VideoDebug = () => {
       const videoData = {
         url: newVideoUrl,
         title: newVideoTitle || 'Test External Video',
-        alt_text: newVideoTitle || 'Test External Video',
-        category: 'Test'
+        alt_text: newVideoTitle || 'Test External Video'
+        // Removed category to avoid schema cache issue
       };
       
       addLog(`Inserting data: ${JSON.stringify(videoData)}`);
       
-      const { data, error } = await supabase
+      // Try to insert without category field
+      let result = await supabase
         .from('media')
         .insert([videoData])
         .select()
         .single();
 
-      if (error) {
-        addLog(`Database error: ${error.message}`);
-        console.error('Database error:', error);
-        alert(`Database error: ${error.message}`);
+      // If it's a schema cache error, try again with a different approach
+      if (result.error && result.error.message.includes('schema cache')) {
+        addLog("Schema cache issue detected. Trying to refresh...");
+        // Try to refresh the schema cache
+        await supabase.from('media').select('id').limit(1);
+        // Retry the insert
+        result = await supabase
+          .from('media')
+          .insert([videoData])
+          .select()
+          .single();
+      }
+
+      if (result.error) {
+        addLog(`Database error: ${result.error.message}`);
+        console.error('Database error:', result.error);
+        alert(`Database error: ${result.error.message}`);
         return;
       }
       
-      addLog(`Successfully added video with ID: ${data.id}`);
-      console.log('Added test video:', data);
+      addLog(`Successfully added video with ID: ${result.data.id}`);
+      console.log('Added test video:', result.data);
       alert("Video added successfully!");
       setNewVideoUrl('');
       setNewVideoTitle('');
