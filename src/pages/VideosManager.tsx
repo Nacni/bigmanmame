@@ -76,6 +76,7 @@ const VideosManager = () => {
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
   const [externalVideoUrl, setExternalVideoUrl] = useState('');
+  const [externalVideoTitle, setExternalVideoTitle] = useState('');
   const [draggedVideo, setDraggedVideo] = useState<Video | null>(null);
 
   useEffect(() => {
@@ -94,17 +95,13 @@ const VideosManager = () => {
       // Filter only video files
       const videoFiles = (data || []).filter(item => 
         item.filename?.match(/\.(mp4|avi|mov|wmv|flv|webm)$/i) || 
-        item.url?.includes('youtube.com') || 
-        item.url?.includes('youtu.be') || 
-        item.url?.includes('vimeo.com')
+        item.url // Include all URLs for external videos
       ).map(item => ({
         ...item,
         video_url: item.url,
-        title: item.filename?.split('.')[0] || 'Untitled Video',
-        category: 'General',
-        is_external: item.url?.includes('youtube.com') || 
-                     item.url?.includes('youtu.be') || 
-                     item.url?.includes('vimeo.com')
+        title: item.title || item.filename?.split('.')[0] || 'Untitled Video',
+        category: item.category || 'General',
+        is_external: !item.filename // If no filename, it's an external video
       }));
       
       setVideos(videoFiles);
@@ -154,7 +151,8 @@ const VideosManager = () => {
           .insert([{
             filename: file.name,
             url: publicUrl,
-            alt_text: file.name.split('.')[0]
+            alt_text: file.name.split('.')[0],
+            title: file.name.split('.')[0]
           }])
           .select()
           .single();
@@ -194,23 +192,16 @@ const VideosManager = () => {
       return;
     }
 
-    // Validate URL format
-    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
-    const vimeoRegex = /^(https?:\/\/)?(www\.)?vimeo\.com\/.+$/;
-    
-    if (!youtubeRegex.test(externalVideoUrl) && !vimeoRegex.test(externalVideoUrl)) {
-      toast.error("Please enter a valid YouTube or Vimeo URL.");
-      return;
-    }
-
+    // Allow any URL for external videos (not just YouTube/Vimeo)
     try {
       // Save to database
       const { data: mediaData, error: dbError } = await supabase
         .from('media')
         .insert([{
-          filename: 'External Video',
           url: externalVideoUrl,
-          alt_text: 'External Video'
+          title: externalVideoTitle || 'External Video',
+          alt_text: externalVideoTitle || 'External Video',
+          category: 'External'
         }])
         .select()
         .single();
@@ -220,8 +211,8 @@ const VideosManager = () => {
         const newVideo: Video = {
           ...mediaData,
           video_url: externalVideoUrl,
-          title: 'External Video',
-          category: 'General',
+          title: externalVideoTitle || 'External Video',
+          category: 'External',
           is_external: true,
           external_url: externalVideoUrl
         };
@@ -229,6 +220,7 @@ const VideosManager = () => {
         setVideos(prev => [newVideo, ...prev]);
         toast.success("External video added successfully.");
         setExternalVideoUrl('');
+        setExternalVideoTitle('');
         setIsUploadDialogOpen(false);
       }
     } catch (error) {
@@ -242,7 +234,7 @@ const VideosManager = () => {
 
     try {
       // If it's not an external video, delete from storage
-      if (!video.is_external) {
+      if (!video.is_external && video.filename) {
         // Extract file path from URL
         const urlParts = video.url.split('/');
         const filePath = `uploads/${urlParts[urlParts.length - 1]}`;
@@ -289,7 +281,10 @@ const VideosManager = () => {
         .from('media')
         .update({
           filename: editingVideo.filename,
-          alt_text: editingVideo.alt_text
+          alt_text: editingVideo.alt_text,
+          title: editingVideo.title,
+          category: editingVideo.category,
+          description: editingVideo.description
         })
         .eq('id', editingVideo.id);
 
@@ -439,18 +434,31 @@ const VideosManager = () => {
                 
                 <TabsContent value="link" className="space-y-4 pt-4">
                   <div className="space-y-2">
+                    <Label htmlFor="external-video-title" className="text-base font-medium text-foreground">
+                      Video Title
+                    </Label>
+                    <Input
+                      id="external-video-title"
+                      placeholder="Enter video title"
+                      value={externalVideoTitle}
+                      onChange={(e) => setExternalVideoTitle(e.target.value)}
+                      className="h-12 text-base bg-input border-border focus:border-primary"
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
                     <Label htmlFor="external-video-url" className="text-base font-medium text-foreground">
                       Video URL
                     </Label>
                     <Input
                       id="external-video-url"
-                      placeholder="https://youtube.com/watch?v=..."
+                      placeholder="https://example.com/video.mp4"
                       value={externalVideoUrl}
                       onChange={(e) => setExternalVideoUrl(e.target.value)}
                       className="h-12 text-base bg-input border-border focus:border-primary"
                     />
                     <p className="text-sm text-muted-foreground">
-                      Supports YouTube and Vimeo URLs
+                      Supports any video URL (YouTube, Vimeo, direct links, etc.)
                     </p>
                   </div>
 
@@ -710,6 +718,7 @@ const VideosManager = () => {
                     <SelectItem value="Interview">Interview</SelectItem>
                     <SelectItem value="Documentary">Documentary</SelectItem>
                     <SelectItem value="Event">Event</SelectItem>
+                    <SelectItem value="External">External</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

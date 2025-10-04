@@ -25,19 +25,24 @@ export interface Article {
   created_at: string;
   updated_at: string;
   author_id: string;
+  tags?: string[];
 }
 
 export interface Media {
   id: string;
-  filename: string;
+  filename?: string;
   url: string;
   alt_text?: string;
+  title?: string;
+  description?: string;
+  category?: string;
   created_at: string;
 }
 
 export interface Comment {
   id: string;
-  article_id: string;
+  article_id?: string;
+  media_id?: string;
   name: string;
   email: string;
   content: string;

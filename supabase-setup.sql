@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS articles (
   content TEXT NOT NULL,
   excerpt TEXT,
   featured_image TEXT,
+  tags TEXT[],
   status TEXT DEFAULT 'draft' CHECK (status IN ('draft', 'published')),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
@@ -19,21 +20,30 @@ CREATE TABLE IF NOT EXISTS articles (
 -- 2. Create media table
 CREATE TABLE IF NOT EXISTS media (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  filename TEXT NOT NULL,
+  filename TEXT,
   url TEXT NOT NULL,
   alt_text TEXT,
+  title TEXT,
+  description TEXT,
+  category TEXT DEFAULT 'General',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 3. Create comments table
+-- 3. Create comments table (modified to support both article and video comments)
 CREATE TABLE IF NOT EXISTS comments (
   id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
   article_id UUID REFERENCES articles(id) ON DELETE CASCADE,
+  media_id UUID REFERENCES media(id) ON DELETE CASCADE,
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   content TEXT NOT NULL,
   approved BOOLEAN DEFAULT false,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  -- Ensure either article_id or media_id is set, but not both
+  CONSTRAINT one_parent CHECK (
+    (article_id IS NOT NULL AND media_id IS NULL) OR 
+    (article_id IS NULL AND media_id IS NOT NULL)
+  )
 );
 
 -- 4. Create page_content table for text content management
@@ -64,6 +74,7 @@ DROP POLICY IF EXISTS "Anyone can view media" ON storage.objects;
 DROP POLICY IF EXISTS "Authenticated users can delete media" ON storage.objects;
 DROP POLICY IF EXISTS "Anyone can insert comments" ON comments;
 DROP POLICY IF EXISTS "Users can manage comments on their articles" ON comments;
+DROP POLICY IF EXISTS "Users can manage comments on their videos" ON comments;
 DROP POLICY IF EXISTS "Anyone can read approved comments" ON comments;
 DROP POLICY IF EXISTS "Authenticated users can manage page content" ON page_content;
 
@@ -88,6 +99,15 @@ CREATE POLICY "Users can manage comments on their articles" ON comments
       SELECT 1 FROM articles 
       WHERE articles.id = comments.article_id 
       AND articles.author_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Users can manage comments on their videos" ON comments
+  FOR ALL USING (
+    EXISTS (
+      SELECT 1 FROM media 
+      WHERE media.id = comments.media_id 
+      AND auth.uid() IS NOT NULL
     )
   );
 

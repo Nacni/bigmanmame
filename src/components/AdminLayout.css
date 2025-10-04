@@ -1,0 +1,103 @@
+/* Admin Layout Specific Styles */
+.admin-layout {
+  font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.admin-sidebar {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 20px hsl(var(--primary) / 0.3);
+}
+
+.admin-sidebar.collapsed {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.admin-content {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.admin-header {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 10px hsl(var(--primary) / 0.2);
+}
+
+/* Smooth transitions for all interactive elements */
+button, a, input, textarea, select {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Card transitions */
+.admin-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.admin-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px hsl(var(--primary) / 0.3);
+}
+
+/* Button hover effects */
+.admin-button-primary {
+  transition: all 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.admin-button-primary:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 0 20px hsl(var(--primary) / 0.5);
+}
+
+/* Input focus effects */
+.admin-input:focus {
+  box-shadow: 0 0 0 3px hsl(var(--primary) / 0.3);
+}
+
+/* Responsive animations */
+@media (max-width: 768px) {
+  .admin-sidebar {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  
+  .admin-content {
+    transition: padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+/* Loading spinner animation */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin-custom {
+  animation: spin 1s linear infinite;
+}
+
+/* Fade in animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Staggered animations */
+.staggered-animation > * {
+  opacity: 0;
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.staggered-animation > *:nth-child(1) { animation-delay: 0.1s; }
+.staggered-animation > *:nth-child(2) { animation-delay: 0.2s; }
+.staggered-animation > *:nth-child(3) { animation-delay: 0.3s; }
+.staggered-animation > *:nth-child(4) { animation-delay: 0.4s; }
+.staggered-animation > *:nth-child(5) { animation-delay: 0.5s; }

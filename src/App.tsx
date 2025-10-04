@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { useEffect } from "react";
 import { ThemeProvider } from "next-themes";
+import { Users, Mail } from 'lucide-react';
 import Index from "./pages/Index";
 import About from "./pages/About";
 import Services from "./pages/Services";
@@ -19,13 +20,49 @@ import BlogPost from "./pages/BlogPost";
 import AdminLayout from "./components/AdminLayout";
 import ArticlesList from "./pages/ArticlesList";
 import ArticleEditor from "./pages/ArticleEditor";
-import MediaManager from "./pages/MediaManager";
 import VideosManager from "./pages/VideosManager";
 import AdminSettings from "./pages/AdminSettings";
 import CommentsList from "./pages/CommentsList";
 import Dashboard from "./pages/NewDashboard";
 import TextContentManager from "./pages/TextContentManager";
 import { LanguageProvider } from "./contexts/LanguageContext";
+
+// Simple placeholder components for new routes
+const SubscribersPage = () => (
+  <div className="space-y-6">
+    <div>
+      <h1 className="text-2xl font-bold text-foreground">Subscribers</h1>
+      <p className="text-base text-muted-foreground mt-1">
+        Manage your newsletter subscribers
+      </p>
+    </div>
+    <div className="bg-card border border-border rounded-lg p-8 text-center">
+      <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+      <h3 className="text-lg font-medium text-foreground mb-2">Subscribers Management</h3>
+      <p className="text-muted-foreground">
+        This feature is coming soon. You'll be able to manage your newsletter subscribers here.
+      </p>
+    </div>
+  </div>
+);
+
+const MessagesPage = () => (
+  <div className="space-y-6">
+    <div>
+      <h1 className="text-2xl font-bold text-foreground">Messages</h1>
+      <p className="text-base text-muted-foreground mt-1">
+        View and manage messages from your website visitors
+      </p>
+    </div>
+    <div className="bg-card border border-border rounded-lg p-8 text-center">
+      <Mail className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+      <h3 className="text-lg font-medium text-foreground mb-2">Messages Management</h3>
+      <p className="text-muted-foreground">
+        This feature is coming soon. You'll be able to view and manage messages from visitors here.
+      </p>
+    </div>
+  </div>
+);
 
 const queryClient = new QueryClient();
 
@@ -77,9 +114,10 @@ const App = () => (
                 <Route path="articles/new" element={<ArticleEditor />} />
                 <Route path="articles/:id/edit" element={<ArticleEditor />} />
                 <Route path="comments" element={<CommentsList />} />
-                <Route path="media" element={<MediaManager />} />
                 <Route path="videos" element={<VideosManager />} />
                 <Route path="text-content" element={<TextContentManager />} />
+                <Route path="subscribers" element={<SubscribersPage />} />
+                <Route path="messages" element={<MessagesPage />} />
                 <Route path="settings" element={<AdminSettings />} />
               </Route>
               

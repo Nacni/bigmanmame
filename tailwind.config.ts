@@ -82,10 +82,6 @@ export default {
 				'gradient-neon': 'linear-gradient(135deg, hsl(var(--primary)), hsl(100 100% 45%))',
 				'gradient-dark': 'linear-gradient(180deg, hsl(var(--background)), hsl(var(--muted)))',
 			},
-			animation: {
-				'pulse-neon': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
-				'glow': 'glow 2s ease-in-out infinite alternate',
-			},
 			keyframes: {
 				glow: {
 					'0%': { 
@@ -113,6 +109,8 @@ export default {
 				}
 			},
 			animation: {
+				'pulse-neon': 'pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+				'glow': 'glow 2s ease-in-out infinite alternate',
 				'accordion-down': 'accordion-down 0.2s ease-out',
 				'accordion-up': 'accordion-up 0.2s ease-out'
 			}

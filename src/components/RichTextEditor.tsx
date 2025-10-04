@@ -1,7 +1,27 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Bold, Italic, List, ListOrdered, Image, Link, Minus, Heading1, Heading2, Heading3, Eye, Edit3 } from 'lucide-react';
+import { 
+  Bold, 
+  Italic, 
+  List, 
+  ListOrdered, 
+  Image, 
+  Link, 
+  Minus, 
+  Heading1, 
+  Heading2, 
+  Heading3, 
+  Eye, 
+  Edit3,
+  Quote,
+  Code,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Strikethrough,
+  Underline
+} from 'lucide-react';
 
 interface RichTextEditorProps {
   value: string;
@@ -12,13 +32,35 @@ interface RichTextEditorProps {
 const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isPreview, setIsPreview] = useState(false);
+  const [selection, setSelection] = useState({ start: 0, end: 0 });
 
-  const insertMarkdown = (markdown: string, wrap: boolean = false, placeholderText: string = '') => {
+  // Track cursor position
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (textarea) {
+      const handleSelection = () => {
+        setSelection({
+          start: textarea.selectionStart,
+          end: textarea.selectionEnd
+        });
+      };
+      
+      textarea.addEventListener('keyup', handleSelection);
+      textarea.addEventListener('click', handleSelection);
+      
+      return () => {
+        textarea.removeEventListener('keyup', handleSelection);
+        textarea.removeEventListener('click', handleSelection);
+      };
+    }
+  }, []);
+
+  const insertMarkdown = (markdown: string, wrap: boolean = false, placeholderText: string = '', isBlock: boolean = false) => {
     const textarea = textareaRef.current;
     if (!textarea) return;
 
-    const start = textarea.selectionStart;
-    const end = textarea.selectionEnd;
+    const start = selection.start;
+    const end = selection.end;
     const selectedText = value.substring(start, end);
 
     let newText = '';
@@ -28,8 +70,12 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
       // For bold, italic, etc. that wrap selected text
       newText = `${markdown}${selectedText || placeholderText}${markdown}`;
       newCursorPos = start + markdown.length + (selectedText.length || placeholderText.length) + markdown.length;
+    } else if (isBlock) {
+      // For block elements like headings, quotes
+      newText = `${markdown}${selectedText || placeholderText}\n`;
+      newCursorPos = start + markdown.length + (selectedText.length || placeholderText.length) + 1;
     } else {
-      // For headings, lists, etc. that are inserted at cursor
+      // For inline elements inserted at cursor
       newText = `${markdown}${selectedText || placeholderText}`;
       newCursorPos = start + markdown.length + (selectedText.length || placeholderText.length);
     }
@@ -49,7 +95,7 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
   const insertImage = () => {
     const imageUrl = prompt('Enter image URL:');
     if (imageUrl) {
-      insertMarkdown(`![Image](${imageUrl})`, false, '');
+      insertMarkdown(`![Image](${imageUrl})`, false, '', true);
     }
   };
 
@@ -57,7 +103,14 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
     const url = prompt('Enter link URL:');
     if (url) {
       const text = prompt('Enter link text:') || url;
-      insertMarkdown(`[${text}](${url})`, false, '');
+      insertMarkdown(`[${text}](${url})`);
+    }
+  };
+
+  const insertVideo = () => {
+    const videoUrl = prompt('Enter video URL (YouTube, Vimeo, etc.):');
+    if (videoUrl) {
+      insertMarkdown(`[Video](${videoUrl})`, false, '', true);
     }
   };
 
@@ -68,8 +121,13 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
     let formattedContent = content
       .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold text-foreground">$1</strong>') // Bold
       .replace(/\*(.*?)\*/g, '<em class="italic text-foreground">$1</em>') // Italic
+      .replace(/~~(.*?)~~/g, '<del class="line-through text-foreground">$1</del>') // Strikethrough
+      .replace(/__(.*?)__/g, '<u class="underline text-foreground">$1</u>') // Underline
       .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto my-4 rounded-lg border border-border" />') // Images
       .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-primary hover:underline" target="_blank">$1</a>') // Links
+      .replace(/^> (.*$)/gm, '<blockquote class="border-l-4 border-primary pl-4 my-4 text-muted-foreground">$1</blockquote>') // Blockquotes
+      .replace(/`(.*?)`/g, '<code class="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">$1</code>') // Inline code
+      .replace(/^```([\s\S]*?)```/gm, '<pre class="bg-muted p-4 rounded-lg my-4 overflow-x-auto"><code class="text-sm">$1</code></pre>') // Code blocks
       .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold mt-6 mb-3 text-foreground">$1</h3>') // H3
       .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-8 mb-4 text-foreground">$1</h2>') // H2
       .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-10 mb-5 text-foreground">$1</h1>') // H1
@@ -78,7 +136,8 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
       .replace(/(?:<li class="ml-6 list-(?:disc|decimal) text-foreground my-1">.*<\/li>)+/gs, (match) => {
         const isOrdered = match.includes('list-decimal');
         return `<${isOrdered ? 'ol' : 'ul'} class="my-4 space-y-1">${match}</${isOrdered ? 'ol' : 'ul'}>`;
-      }); // Wrap list items
+      }) // Wrap list items
+      .replace(/^---$/gm, '<hr class="my-6 border-border" />'); // Horizontal rule
 
     // Handle paragraphs and line breaks
     if (formattedContent.includes('\n\n')) {
@@ -119,7 +178,26 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => insertMarkdown('# ', false, 'Heading')}
+          onClick={() => insertMarkdown('__', true, 'underlined text')}
+          title="Underline"
+        >
+          <Underline className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => insertMarkdown('~~', true, 'strikethrough text')}
+          title="Strikethrough"
+        >
+          <Strikethrough className="h-4 w-4" />
+        </Button>
+        <div className="border-l border-border h-6 mx-1"></div>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => insertMarkdown('# ', false, 'Heading', true)}
           title="Heading 1"
         >
           <Heading1 className="h-4 w-4" />
@@ -128,7 +206,7 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => insertMarkdown('## ', false, 'Heading')}
+          onClick={() => insertMarkdown('## ', false, 'Heading', true)}
           title="Heading 2"
         >
           <Heading2 className="h-4 w-4" />
@@ -137,16 +215,17 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => insertMarkdown('### ', false, 'Heading')}
+          onClick={() => insertMarkdown('### ', false, 'Heading', true)}
           title="Heading 3"
         >
           <Heading3 className="h-4 w-4" />
         </Button>
+        <div className="border-l border-border h-6 mx-1"></div>
         <Button
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => insertMarkdown('- ', false, 'List item')}
+          onClick={() => insertMarkdown('- ', false, 'List item', true)}
           title="Bullet List"
         >
           <List className="h-4 w-4" />
@@ -155,11 +234,21 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
           type="button"
           variant="ghost"
           size="sm"
-          onClick={() => insertMarkdown('1. ', false, 'List item')}
+          onClick={() => insertMarkdown('1. ', false, 'List item', true)}
           title="Numbered List"
         >
           <ListOrdered className="h-4 w-4" />
         </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => insertMarkdown('> ', false, 'Quote', true)}
+          title="Blockquote"
+        >
+          <Quote className="h-4 w-4" />
+        </Button>
+        <div className="border-l border-border h-6 mx-1"></div>
         <Button
           type="button"
           variant="ghost"
@@ -178,6 +267,27 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
         >
           <Link className="h-4 w-4" />
         </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={insertVideo}
+          title="Insert Video"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
+            <polygon points="23 7 16 12 23 17 23 7"></polygon>
+            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
+          </svg>
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => insertMarkdown('---\n', false, '', true)}
+          title="Horizontal Rule"
+        >
+          <Minus className="h-4 w-4" />
+        </Button>
         <div className="border-l border-border h-6 mx-1"></div>
         <Button
           type="button"
@@ -189,12 +299,12 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
           {isPreview ? (
             <>
               <Edit3 className="h-4 w-4 mr-1" />
-              Edit
+              <span className="hidden sm:inline">Edit</span>
             </>
           ) : (
             <>
               <Eye className="h-4 w-4 mr-1" />
-              Preview
+              <span className="hidden sm:inline">Preview</span>
             </>
           )}
         </Button>
@@ -213,7 +323,7 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
             value={value || ''}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder || "Write your content here..."}
-            className="min-h-[400px] resize-none bg-input border-0 p-4 focus-visible:ring-0 rounded-b-lg text-foreground text-base"
+            className="min-h-[400px] resize-none bg-input border-0 p-4 focus-visible:ring-0 rounded-b-lg text-foreground text-base font-sans"
           />
         )}
       </div>

@@ -7,7 +7,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Save, Eye, ArrowLeft, Trash2, Plus, Upload, X, Calendar, Tag, Hash, FileText, Image as ImageIcon } from 'lucide-react';
+import { 
+  Save, 
+  Eye, 
+  ArrowLeft, 
+  Trash2, 
+  Plus, 
+  Upload, 
+  X, 
+  Calendar, 
+  Tag, 
+  Hash, 
+  FileText, 
+  Image as ImageIcon,
+  Link as LinkIcon,
+  Video,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
+  Type,
+  Palette,
+  Settings
+} from 'lucide-react';
 import { supabase, Article } from '@/lib/supabase';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from '@/components/ui/sonner';
@@ -20,13 +41,15 @@ const ArticleEditor = () => {
     content: '',
     excerpt: '',
     featured_image: '',
-    status: 'draft'
+    status: 'draft',
+    tags: []
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [previewMode, setPreviewMode] = useState(false);
+  const [newTag, setNewTag] = useState('');
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { id } = useParams();
   const navigate = useNavigate();
@@ -164,6 +187,23 @@ const ArticleEditor = () => {
     input.click();
   };
 
+  const addTag = () => {
+    if (newTag.trim() && !article.tags?.includes(newTag.trim())) {
+      setArticle(prev => ({
+        ...prev,
+        tags: [...(prev.tags || []), newTag.trim()]
+      }));
+      setNewTag('');
+    }
+  };
+
+  const removeTag = (tagToRemove: string) => {
+    setArticle(prev => ({
+      ...prev,
+      tags: (prev.tags || []).filter(tag => tag !== tagToRemove)
+    }));
+  };
+
   const handleSave = async (status?: 'draft' | 'published') => {
     setSaving(true);
     setError('');
@@ -228,6 +268,11 @@ const ArticleEditor = () => {
       console.error('Error deleting article:', error);
       toast.error("Failed to delete article.");
     }
+  };
+
+  const previewArticle = () => {
+    // In a real implementation, this would open a preview in a new tab
+    toast.info("Preview functionality would open in a new tab in a real implementation.");
   };
 
   if (loading) {
@@ -307,9 +352,23 @@ const ArticleEditor = () => {
         </Alert>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Main Content Editor */}
-        <div className="lg:col-span-2 space-y-6">
+      <Tabs defaultValue="content" className="w-full">
+        <TabsList className="grid w-full grid-cols-3">
+          <TabsTrigger value="content" className="flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            <span className="hidden sm:inline">Content</span>
+          </TabsTrigger>
+          <TabsTrigger value="settings" className="flex items-center gap-2">
+            <Settings className="h-4 w-4" />
+            <span className="hidden sm:inline">Settings</span>
+          </TabsTrigger>
+          <TabsTrigger value="preview" className="flex items-center gap-2">
+            <Eye className="h-4 w-4" />
+            <span className="hidden sm:inline">Preview</span>
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="content" className="space-y-6 mt-6">
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center">
@@ -341,6 +400,38 @@ const ArticleEditor = () => {
                   rows={3}
                   className="bg-input border-border resize-none text-base px-4 py-3"
                 />
+              </div>
+
+              {/* Tags Section */}
+              <div className="space-y-2">
+                <Label htmlFor="tags" className="text-base font-medium">Tags</Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="tags"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    placeholder="Add a tag"
+                    className="bg-input border-border flex-1"
+                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                  />
+                  <Button onClick={addTag} variant="outline" className="h-10">
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {article.tags?.map((tag) => (
+                    <div key={tag} className="flex items-center bg-primary/10 text-primary rounded-full px-3 py-1 text-sm">
+                      <Hash className="h-3 w-3 mr-1" />
+                      {tag}
+                      <button 
+                        onClick={() => removeTag(tag)}
+                        className="ml-2 text-primary hover:text-primary/80"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
               </div>
 
               {/* Content Section */}
@@ -378,35 +469,58 @@ const ArticleEditor = () => {
               </div>
             </CardContent>
           </Card>
-        </div>
+        </TabsContent>
 
-        {/* Settings Panel */}
-        <div className="space-y-6">
-          <Card className="bg-card border-border">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Tag className="mr-2 h-5 w-5" />
-                Article Settings
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="space-y-2">
-                <Label htmlFor="slug" className="text-base font-medium">Slug</Label>
-                <Input
-                  id="slug"
-                  value={article.slug || ''}
-                  onChange={(e) => setArticle(prev => ({ ...prev, slug: e.target.value }))}
-                  placeholder="Enter article slug"
-                  className="bg-input border-border h-10"
-                />
-              </div>
+        <TabsContent value="settings" className="space-y-6 mt-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Settings className="mr-2 h-5 w-5" />
+                  Article Settings
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="space-y-2">
+                  <Label htmlFor="slug" className="text-base font-medium">Slug</Label>
+                  <Input
+                    id="slug"
+                    value={article.slug || ''}
+                    onChange={(e) => setArticle(prev => ({ ...prev, slug: e.target.value }))}
+                    placeholder="Enter article slug"
+                    className="bg-input border-border h-10"
+                  />
+                </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="featured_image" className="text-base font-medium">Featured Image</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="status" className="text-base font-medium">Status</Label>
+                  <Select
+                    value={article.status || 'draft'}
+                    onValueChange={(value) => setArticle(prev => ({ ...prev, status: value as any }))}
+                  >
+                    <SelectTrigger className="bg-input border-border h-10">
+                      <SelectValue placeholder="Select status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="draft">Draft</SelectItem>
+                      <SelectItem value="published">Published</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border">
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <ImageIcon className="mr-2 h-5 w-5" />
+                  Featured Image
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
                 <div className="flex flex-col sm:flex-row gap-4">
                   <div className="flex-1">
                     <Input
-                      id="featured_image"
                       value={article.featured_image || ''}
                       onChange={(e) => setArticle(prev => ({ ...prev, featured_image: e.target.value }))}
                       placeholder="Enter image URL or upload below"
@@ -449,42 +563,35 @@ const ArticleEditor = () => {
                     />
                   </div>
                 )}
-              </div>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
 
-              <div className="space-y-2">
-                <Label htmlFor="status" className="text-base font-medium">Status</Label>
-                <Select
-                  value={article.status || 'draft'}
-                  onValueChange={(value) => setArticle(prev => ({ ...prev, status: value as any }))}
-                >
-                  <SelectTrigger className="bg-input border-border h-10">
-                    <SelectValue placeholder="Select status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="draft">Draft</SelectItem>
-                    <SelectItem value="published">Published</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Preview Card */}
+        <TabsContent value="preview" className="space-y-6 mt-6">
           <Card className="bg-card border-border">
             <CardHeader>
               <CardTitle className="flex items-center">
                 <Eye className="mr-2 h-5 w-5" />
-                Preview
+                Article Preview
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
-                  <h3 className="font-bold text-lg text-foreground mb-2">
+                  <h1 className="text-3xl font-bold text-foreground mb-2">
                     {article.title || "Article Title"}
-                  </h3>
+                  </h1>
+                  <div className="flex items-center text-sm text-muted-foreground mb-4">
+                    <Calendar className="h-4 w-4 mr-1" />
+                    {new Date().toLocaleDateString('en-US', {
+                      year: 'numeric',
+                      month: 'long',
+                      day: 'numeric'
+                    })}
+                  </div>
                   {article.excerpt && (
-                    <p className="text-muted-foreground text-sm">
+                    <p className="text-muted-foreground text-lg mb-6">
                       {article.excerpt}
                     </p>
                   )}
@@ -495,33 +602,44 @@ const ArticleEditor = () => {
                     <img
                       src={article.featured_image}
                       alt="Featured"
-                      className="w-full h-32 object-cover rounded-lg border border-border"
+                      className="w-full h-64 object-cover rounded-lg border border-border"
                     />
                   </div>
                 )}
                 
-                <div className="text-sm text-muted-foreground">
+                <div className="prose prose-invert max-w-none">
                   {article.content ? (
                     <div 
-                      className="prose prose-invert max-w-none"
+                      className="text-foreground"
                       dangerouslySetInnerHTML={{ 
                         __html: article.content
-                          .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
-                          .replace(/\*(.*?)\*/g, '<em>$1</em>')
-                          .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="my-2 max-w-full h-auto rounded" />')
-                          .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-primary">$1</a>')
+                          .replace(/\*\*(.*?)\*\*/g, '<strong class="font-bold">$1</strong>')
+                          .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+                          .replace(/~~(.*?)~~/g, '<del class="line-through">$1</del>')
+                          .replace(/__(.*?)__/g, '<u class="underline">$1</u>')
+                          .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="my-4 max-w-full h-auto rounded-lg border border-border" />')
+                          .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-primary hover:underline">$1</a>')
+                          .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold mt-6 mb-3">$1</h3>')
+                          .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-8 mb-4">$1</h2>')
+                          .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-10 mb-5">$1</h1>')
+                          .replace(/^\- (.*$)/gm, '<li class="ml-6 list-disc my-1">$1</li>')
+                          .replace(/^\d+\. (.*$)/gm, '<li class="ml-6 list-decimal my-1">$1</li>')
+                          .replace(/(?:<li class="ml-6 list-(?:disc|decimal) my-1">.*<\/li>)+/gs, (match) => {
+                            const isOrdered = match.includes('list-decimal');
+                            return `<${isOrdered ? 'ol' : 'ul'} class="my-4 space-y-1">${match}</${isOrdered ? 'ol' : 'ul'}>`;
+                          })
                           .replace(/\n/g, '<br />')
                       }} 
                     />
                   ) : (
-                    <p className="italic">No content yet. Start writing your article...</p>
+                    <p className="italic text-muted-foreground">No content yet. Start writing your article...</p>
                   )}
                 </div>
               </div>
             </CardContent>
           </Card>
-        </div>
-      </div>
+        </TabsContent>
+      </Tabs>
 
       <div className="flex justify-between">
         <Button
