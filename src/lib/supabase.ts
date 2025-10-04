@@ -44,3 +44,10 @@ export interface Comment {
   approved: boolean;
   created_at: string;
 }
+
+export interface PageContent {
+  id: string;
+  page_name: string;
+  content: string;
+  updated_at: string;
+}

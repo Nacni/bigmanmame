@@ -18,7 +18,10 @@ import {
   Edit,
   Play,
   Calendar,
-  Eye
+  Eye,
+  Link as LinkIcon,
+  GripVertical,
+  Plus
 } from 'lucide-react';
 import { supabase, Media } from '@/lib/supabase';
 import { toast } from '@/components/ui/sonner';
@@ -43,6 +46,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from '@/components/ui/tabs';
 
 interface Video extends Media {
   title?: string;
@@ -52,6 +61,8 @@ interface Video extends Media {
   views?: number;
   thumbnail_url?: string;
   video_url: string;
+  is_external?: boolean;
+  external_url?: string;
 }
 
 const VideosManager = () => {
@@ -63,6 +74,9 @@ const VideosManager = () => {
   const [fileTypeFilter, setFileTypeFilter] = useState<'all' | 'videos'>('all');
   const [editingVideo, setEditingVideo] = useState<Video | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isUploadDialogOpen, setIsUploadDialogOpen] = useState(false);
+  const [externalVideoUrl, setExternalVideoUrl] = useState('');
+  const [draggedVideo, setDraggedVideo] = useState<Video | null>(null);
 
   useEffect(() => {
     fetchVideos();
@@ -79,12 +93,18 @@ const VideosManager = () => {
       
       // Filter only video files
       const videoFiles = (data || []).filter(item => 
-        item.filename.match(/\.(mp4|avi|mov|wmv|flv|webm)$/i)
+        item.filename?.match(/\.(mp4|avi|mov|wmv|flv|webm)$/i) || 
+        item.url?.includes('youtube.com') || 
+        item.url?.includes('youtu.be') || 
+        item.url?.includes('vimeo.com')
       ).map(item => ({
         ...item,
         video_url: item.url,
-        title: item.filename.split('.')[0],
-        category: 'General'
+        title: item.filename?.split('.')[0] || 'Untitled Video',
+        category: 'General',
+        is_external: item.url?.includes('youtube.com') || 
+                     item.url?.includes('youtu.be') || 
+                     item.url?.includes('vimeo.com')
       }));
       
       setVideos(videoFiles);
@@ -145,7 +165,8 @@ const VideosManager = () => {
             ...mediaData,
             video_url: publicUrl,
             title: file.name.split('.')[0],
-            category: 'General'
+            category: 'General',
+            is_external: false
           });
         }
       }
@@ -163,23 +184,76 @@ const VideosManager = () => {
       toast.error("Failed to upload videos. Please try again.");
     } finally {
       setUploading(false);
+      setIsUploadDialogOpen(false);
+    }
+  };
+
+  const addExternalVideo = async () => {
+    if (!externalVideoUrl) {
+      toast.error("Please enter a video URL.");
+      return;
+    }
+
+    // Validate URL format
+    const youtubeRegex = /^(https?:\/\/)?(www\.)?(youtube\.com|youtu\.?be)\/.+$/;
+    const vimeoRegex = /^(https?:\/\/)?(www\.)?vimeo\.com\/.+$/;
+    
+    if (!youtubeRegex.test(externalVideoUrl) && !vimeoRegex.test(externalVideoUrl)) {
+      toast.error("Please enter a valid YouTube or Vimeo URL.");
+      return;
+    }
+
+    try {
+      // Save to database
+      const { data: mediaData, error: dbError } = await supabase
+        .from('media')
+        .insert([{
+          filename: 'External Video',
+          url: externalVideoUrl,
+          alt_text: 'External Video'
+        }])
+        .select()
+        .single();
+
+      if (dbError) throw dbError;
+      if (mediaData) {
+        const newVideo: Video = {
+          ...mediaData,
+          video_url: externalVideoUrl,
+          title: 'External Video',
+          category: 'General',
+          is_external: true,
+          external_url: externalVideoUrl
+        };
+        
+        setVideos(prev => [newVideo, ...prev]);
+        toast.success("External video added successfully.");
+        setExternalVideoUrl('');
+        setIsUploadDialogOpen(false);
+      }
+    } catch (error) {
+      console.error('Error adding external video:', error);
+      toast.error("Failed to add external video. Please try again.");
     }
   };
 
   const handleDelete = async (video: Video) => {
-    if (!window.confirm(`Are you sure you want to delete "${video.filename}"?`)) return;
+    if (!window.confirm(`Are you sure you want to delete "${video.title || video.filename}"?`)) return;
 
     try {
-      // Extract file path from URL
-      const urlParts = video.url.split('/');
-      const filePath = `uploads/${urlParts[urlParts.length - 1]}`;
+      // If it's not an external video, delete from storage
+      if (!video.is_external) {
+        // Extract file path from URL
+        const urlParts = video.url.split('/');
+        const filePath = `uploads/${urlParts[urlParts.length - 1]}`;
 
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from('media')
-        .remove([filePath]);
+        // Delete from storage
+        const { error: storageError } = await supabase.storage
+          .from('media')
+          .remove([filePath]);
 
-      if (storageError) throw storageError;
+        if (storageError) throw storageError;
+      }
 
       // Delete from database
       const { error: dbError } = await supabase
@@ -236,9 +310,39 @@ const VideosManager = () => {
     }
   };
 
+  // Drag and drop functions for reordering
+  const handleDragStart = (e: React.DragEvent, video: Video) => {
+    setDraggedVideo(video);
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetVideo: Video) => {
+    e.preventDefault();
+    if (!draggedVideo || draggedVideo.id === targetVideo.id) return;
+
+    const draggedIndex = videos.findIndex(v => v.id === draggedVideo.id);
+    const targetIndex = videos.findIndex(v => v.id === targetVideo.id);
+
+    if (draggedIndex === -1 || targetIndex === -1) return;
+
+    const newVideos = [...videos];
+    const [removed] = newVideos.splice(draggedIndex, 1);
+    newVideos.splice(targetIndex, 0, removed);
+
+    setVideos(newVideos);
+    setDraggedVideo(null);
+    
+    toast.success("Video order updated.");
+  };
+
   const filteredVideos = videos.filter(video => {
     // Apply search filter
-    const matchesSearch = video.filename.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    const matchesSearch = video.filename?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (video.alt_text && video.alt_text.toLowerCase().includes(searchTerm.toLowerCase())) ||
       (video.title && video.title.toLowerCase().includes(searchTerm.toLowerCase()));
     
@@ -264,56 +368,108 @@ const VideosManager = () => {
       </div>
 
       {/* Upload Section */}
-      <Card className="bg-card border-border">
+      <Card className="bg-card border-border shadow-sm">
         <CardHeader>
           <CardTitle className="text-xl text-foreground">Upload New Videos</CardTitle>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="video-upload" className="text-base font-medium text-foreground">
-              Select Video Files
-            </Label>
-            <Input
-              id="video-upload"
-              type="file"
-              multiple
-              accept="video/*"
-              onChange={handleFileSelect}
-              className="h-12 text-base bg-input border-border focus:border-primary file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
-            />
-          </div>
+          <Dialog open={isUploadDialogOpen} onOpenChange={setIsUploadDialogOpen}>
+            <DialogTrigger asChild>
+              <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                <Plus className="mr-2 h-4 w-4" />
+                Add Video
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="bg-card border-border max-w-md">
+              <DialogHeader>
+                <DialogTitle className="text-foreground">Add Video</DialogTitle>
+                <DialogDescription className="text-muted-foreground">
+                  Upload a video file or add a link to an external video
+                </DialogDescription>
+              </DialogHeader>
+              
+              <Tabs defaultValue="upload" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="upload">Upload File</TabsTrigger>
+                  <TabsTrigger value="link">Add Link</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="upload" className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="video-upload" className="text-base font-medium text-foreground">
+                      Select Video Files
+                    </Label>
+                    <Input
+                      id="video-upload"
+                      type="file"
+                      multiple
+                      accept="video/*"
+                      onChange={handleFileSelect}
+                      className="h-12 text-base bg-input border-border focus:border-primary file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-medium file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
+                    />
+                  </div>
 
-          {selectedFiles && selectedFiles.length > 0 && (
-            <Alert className="border-primary bg-primary/10">
-              <Upload className="h-4 w-4" />
-              <AlertDescription className="text-foreground font-medium">
-                {selectedFiles.length} video(s) selected for upload
-              </AlertDescription>
-            </Alert>
-          )}
+                  {selectedFiles && selectedFiles.length > 0 && (
+                    <Alert className="border-primary bg-primary/10">
+                      <Upload className="h-4 w-4" />
+                      <AlertDescription className="text-foreground font-medium">
+                        {selectedFiles.length} video(s) selected for upload
+                      </AlertDescription>
+                    </Alert>
+                  )}
 
-          <Button
-            onClick={uploadVideos}
-            disabled={!selectedFiles || uploading}
-            className="bg-primary text-primary-foreground hover:bg-primary/90"
-          >
-            {uploading ? (
-              <div className="flex items-center">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
-                Uploading...
-              </div>
-            ) : (
-              <>
-                <Upload className="mr-2 h-4 w-4" />
-                Upload Videos
-              </>
-            )}
-          </Button>
+                  <Button
+                    onClick={uploadVideos}
+                    disabled={!selectedFiles || uploading}
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    {uploading ? (
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
+                        Uploading...
+                      </div>
+                    ) : (
+                      <>
+                        <Upload className="mr-2 h-4 w-4" />
+                        Upload Videos
+                      </>
+                    )}
+                  </Button>
+                </TabsContent>
+                
+                <TabsContent value="link" className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="external-video-url" className="text-base font-medium text-foreground">
+                      Video URL
+                    </Label>
+                    <Input
+                      id="external-video-url"
+                      placeholder="https://youtube.com/watch?v=..."
+                      value={externalVideoUrl}
+                      onChange={(e) => setExternalVideoUrl(e.target.value)}
+                      className="h-12 text-base bg-input border-border focus:border-primary"
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Supports YouTube and Vimeo URLs
+                    </p>
+                  </div>
+
+                  <Button
+                    onClick={addExternalVideo}
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                  >
+                    <LinkIcon className="mr-2 h-4 w-4" />
+                    Add External Video
+                  </Button>
+                </TabsContent>
+              </Tabs>
+            </DialogContent>
+          </Dialog>
         </CardContent>
       </Card>
 
       {/* Search and Filters */}
-      <Card className="bg-card border-border">
+      <Card className="bg-card border-border shadow-sm">
         <CardContent className="pt-6">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
@@ -352,19 +508,19 @@ const VideosManager = () => {
             </div>
             <div className="text-center p-3 bg-muted/50 rounded-lg">
               <p className="text-2xl font-bold text-purple-500">
-                {videos.filter(v => v.filename.match(/\.(mp4)$/i)).length}
+                {videos.filter(v => v.filename?.match(/\.(mp4)$/i)).length}
               </p>
               <p className="text-sm text-muted-foreground">MP4</p>
             </div>
             <div className="text-center p-3 bg-muted/50 rounded-lg">
               <p className="text-2xl font-bold text-blue-500">
-                {videos.filter(v => v.filename.match(/\.(mov)$/i)).length}
+                {videos.filter(v => v.is_external).length}
               </p>
-              <p className="text-sm text-muted-foreground">MOV</p>
+              <p className="text-sm text-muted-foreground">External</p>
             </div>
             <div className="text-center p-3 bg-muted/50 rounded-lg">
               <p className="text-2xl font-bold text-green-500">
-                {videos.filter(v => v.filename.match(/\.(avi|wmv|flv|webm)$/i)).length}
+                {videos.filter(v => v.filename?.match(/\.(avi|wmv|flv|webm|mov)$/i)).length}
               </p>
               <p className="text-sm text-muted-foreground">Other</p>
             </div>
@@ -374,7 +530,7 @@ const VideosManager = () => {
 
       {/* Videos Grid */}
       {filteredVideos.length === 0 ? (
-        <Card className="bg-card border-border">
+        <Card className="bg-card border-border shadow-sm">
           <CardContent className="py-12">
             <div className="text-center">
               <VideoIcon className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
@@ -392,7 +548,14 @@ const VideosManager = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
           {filteredVideos.map((video) => (
-            <Card key={video.id} className="bg-card border-border hover:shadow-md transition-all duration-300">
+            <Card 
+              key={video.id} 
+              className="bg-card border-border hover:shadow-md transition-all duration-300 group"
+              draggable
+              onDragStart={(e) => handleDragStart(e, video)}
+              onDragOver={handleDragOver}
+              onDrop={(e) => handleDrop(e, video)}
+            >
               <CardContent className="p-4">
                 <div className="aspect-video mb-3 bg-muted rounded-lg overflow-hidden flex items-center justify-center relative">
                   {video.thumbnail_url ? (
@@ -406,7 +569,7 @@ const VideosManager = () => {
                       <VideoIcon className="h-12 w-12 text-muted-foreground" />
                     </div>
                   )}
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <Button 
                       size="icon" 
                       variant="secondary"
@@ -421,6 +584,18 @@ const VideosManager = () => {
                       {video.duration}
                     </div>
                   )}
+                  {video.is_external && (
+                    <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+                      External
+                    </div>
+                  )}
+                  <div 
+                    className="absolute top-2 left-2 cursor-move text-white/70 hover:text-white"
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, video)}
+                  >
+                    <GripVertical className="h-4 w-4" />
+                  </div>
                 </div>
 
                 <div className="space-y-1">
@@ -503,9 +678,10 @@ const VideosManager = () => {
                 <Label htmlFor="video-filename" className="text-foreground">Filename</Label>
                 <Input
                   id="video-filename"
-                  value={editingVideo.filename}
+                  value={editingVideo.filename || ''}
                   onChange={(e) => setEditingVideo({...editingVideo, filename: e.target.value})}
                   className="bg-input border-border text-foreground"
+                  disabled={editingVideo.is_external}
                 />
               </div>
               
