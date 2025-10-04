@@ -72,10 +72,10 @@ const Videos = () => {
 
       if (error) throw error;
       
-      // Filter only video files
+      // Filter only video files - include external videos (those without filename)
       const videoFiles = (data || []).filter(item => 
         item.filename?.match(/\.(mp4|avi|mov|wmv|flv|webm)$/i) || 
-        item.url // Include all URLs for external videos
+        !item.filename // Include all items without filename (external videos)
       ).map(item => ({
         ...item,
         title: item.title || item.filename?.split('.')[0] || 'Untitled Video',

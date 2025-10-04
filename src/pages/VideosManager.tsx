@@ -92,10 +92,10 @@ const VideosManager = () => {
 
       if (error) throw error;
       
-      // Filter only video files
+      // Filter only video files - include external videos (those without filename)
       const videoFiles = (data || []).filter(item => 
         item.filename?.match(/\.(mp4|avi|mov|wmv|flv|webm)$/i) || 
-        item.url // Include all URLs for external videos
+        !item.filename // Include all items without filename (external videos)
       ).map(item => ({
         ...item,
         video_url: item.url,
@@ -152,7 +152,8 @@ const VideosManager = () => {
             filename: file.name,
             url: publicUrl,
             alt_text: file.name.split('.')[0],
-            title: file.name.split('.')[0]
+            title: file.name.split('.')[0],
+            category: 'General'
           }])
           .select()
           .single();
@@ -237,14 +238,18 @@ const VideosManager = () => {
       if (!video.is_external && video.filename) {
         // Extract file path from URL
         const urlParts = video.url.split('/');
-        const filePath = `uploads/${urlParts[urlParts.length - 1]}`;
+        const fileName = urlParts[urlParts.length - 1];
+        const filePath = `uploads/${fileName}`;
 
         // Delete from storage
         const { error: storageError } = await supabase.storage
           .from('media')
           .remove([filePath]);
 
-        if (storageError) throw storageError;
+        if (storageError) {
+          console.error('Error deleting from storage:', storageError);
+          // Continue with database deletion even if storage deletion fails
+        }
       }
 
       // Delete from database
@@ -339,7 +344,8 @@ const VideosManager = () => {
     // Apply search filter
     const matchesSearch = video.filename?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       (video.alt_text && video.alt_text.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (video.title && video.title.toLowerCase().includes(searchTerm.toLowerCase()));
+      (video.title && video.title.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (video.description && video.description.toLowerCase().includes(searchTerm.toLowerCase()));
     
     return matchesSearch;
   });
