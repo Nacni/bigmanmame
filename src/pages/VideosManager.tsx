@@ -85,12 +85,19 @@ const VideosManager = () => {
 
   const fetchVideos = async () => {
     try {
+      console.log('Fetching videos from database...');
       const { data, error } = await supabase
         .from('media')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        toast.error(`Database error: ${error.message}`);
+        throw error;
+      }
+      
+      console.log('Fetched media data:', data);
       
       // Filter only video files - include external videos (those without filename)
       const videoFiles = (data || []).filter(item => 
@@ -104,10 +111,11 @@ const VideosManager = () => {
         is_external: !item.filename // If no filename, it's an external video
       }));
       
+      console.log('Filtered video files:', videoFiles);
       setVideos(videoFiles);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching videos:', error);
-      toast.error("Failed to load videos.");
+      toast.error(`Failed to load videos: ${error.message || 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -138,7 +146,11 @@ const VideosManager = () => {
           .from('media')
           .upload(filePath, file);
 
-        if (uploadError) throw uploadError;
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          toast.error(`Failed to upload ${file.name}: ${uploadError.message}`);
+          continue; // Continue with other files
+        }
 
         // Get public URL
         const { data: { publicUrl } } = supabase.storage
@@ -158,7 +170,14 @@ const VideosManager = () => {
           .select()
           .single();
 
-        if (dbError) throw dbError;
+        if (dbError) {
+          console.error('Database error:', dbError);
+          toast.error(`Failed to save ${file.name} to database: ${dbError.message}`);
+          // Try to delete the uploaded file since we couldn't save to DB
+          await supabase.storage.from('media').remove([filePath]);
+          continue;
+        }
+
         if (mediaData) {
           uploadedVideos.push({
             ...mediaData,
@@ -170,17 +189,21 @@ const VideosManager = () => {
         }
       }
 
-      setVideos(prev => [...uploadedVideos, ...prev]);
+      if (uploadedVideos.length > 0) {
+        setVideos(prev => [...uploadedVideos, ...prev]);
+        toast.success(`${uploadedVideos.length} video(s) uploaded successfully.`);
+      } else if (selectedFiles.length > 0) {
+        toast.error("No videos were successfully uploaded.");
+      }
+
       setSelectedFiles(null);
       
       // Clear the input
       const fileInput = document.getElementById('video-upload') as HTMLInputElement;
       if (fileInput) fileInput.value = '';
-
-      toast.success(`${uploadedVideos.length} video(s) uploaded successfully.`);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading videos:', error);
-      toast.error("Failed to upload videos. Please try again.");
+      toast.error(`Failed to upload videos: ${error.message || 'Unknown error'}`);
     } finally {
       setUploading(false);
       setIsUploadDialogOpen(false);
@@ -193,8 +216,22 @@ const VideosManager = () => {
       return;
     }
 
-    // Allow any URL for external videos (not just YouTube/Vimeo)
+    // Validate URL format
     try {
+      new URL(externalVideoUrl);
+    } catch (e) {
+      toast.error("Please enter a valid URL.");
+      return;
+    }
+
+    try {
+      console.log('Adding external video:', { 
+        url: externalVideoUrl, 
+        title: externalVideoTitle || 'External Video',
+        alt_text: externalVideoTitle || 'External Video',
+        category: 'External'
+      });
+      
       // Save to database
       const { data: mediaData, error: dbError } = await supabase
         .from('media')
@@ -207,7 +244,14 @@ const VideosManager = () => {
         .select()
         .single();
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error('Database error:', dbError);
+        toast.error(`Database error: ${dbError.message}`);
+        return;
+      }
+
+      console.log('Successfully added external video:', mediaData);
+      
       if (mediaData) {
         const newVideo: Video = {
           ...mediaData,
@@ -224,9 +268,9 @@ const VideosManager = () => {
         setExternalVideoTitle('');
         setIsUploadDialogOpen(false);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding external video:', error);
-      toast.error("Failed to add external video. Please try again.");
+      toast.error(`Failed to add external video: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -247,7 +291,7 @@ const VideosManager = () => {
           .remove([filePath]);
 
         if (storageError) {
-          console.error('Error deleting from storage:', storageError);
+          console.warn('Warning: Could not delete file from storage:', storageError);
           // Continue with database deletion even if storage deletion fails
         }
       }
@@ -258,13 +302,17 @@ const VideosManager = () => {
         .delete()
         .eq('id', video.id);
 
-      if (dbError) throw dbError;
+      if (dbError) {
+        console.error('Database error:', dbError);
+        toast.error(`Failed to delete video from database: ${dbError.message}`);
+        return;
+      }
 
       setVideos(prev => prev.filter(item => item.id !== video.id));
       toast.success("Video deleted successfully.");
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting video:', error);
-      toast.error("Failed to delete video.");
+      toast.error(`Failed to delete video: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -293,7 +341,11 @@ const VideosManager = () => {
         })
         .eq('id', editingVideo.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error('Database error:', error);
+        toast.error(`Failed to update video: ${error.message}`);
+        return;
+      }
 
       setVideos(prev => 
         prev.map(video => 
@@ -304,9 +356,9 @@ const VideosManager = () => {
       toast.success("Video details updated successfully.");
       setIsEditDialogOpen(false);
       setEditingVideo(null);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating video:', error);
-      toast.error("Failed to update video details.");
+      toast.error(`Failed to update video details: ${error.message || 'Unknown error'}`);
     }
   };
 

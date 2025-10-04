@@ -26,6 +26,7 @@ import CommentsList from "./pages/CommentsList";
 import Dashboard from "./pages/NewDashboard";
 import TextContentManager from "./pages/TextContentManager";
 import VideoDebug from "./components/VideoDebug";
+import VideoTest from "./pages/VideoTest";
 import { LanguageProvider } from "./contexts/LanguageContext";
 
 // Simple placeholder components for new routes
@@ -118,6 +119,7 @@ const App = () => (
                 <Route path="videos" element={<VideosManager />} />
                 <Route path="text-content" element={<TextContentManager />} />
                 <Route path="video-debug" element={<VideoDebug />} />
+                <Route path="video-test" element={<VideoTest />} />
                 <Route path="subscribers" element={<SubscribersPage />} />
                 <Route path="messages" element={<MessagesPage />} />
                 <Route path="settings" element={<AdminSettings />} />

@@ -3,31 +3,45 @@ import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 const VideoDebug = () => {
   const [videos, setVideos] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [newVideoUrl, setNewVideoUrl] = useState('');
   const [newVideoTitle, setNewVideoTitle] = useState('');
+  const [logs, setLogs] = useState<string[]>([]);
 
   useEffect(() => {
     fetchAllMedia();
   }, []);
 
+  const addLog = (message: string) => {
+    setLogs(prev => [...prev, `${new Date().toLocaleTimeString()}: ${message}`]);
+  };
+
   const fetchAllMedia = async () => {
     try {
       setLoading(true);
+      addLog("Fetching all media from database...");
+      
       const { data, error } = await supabase
         .from('media')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        addLog(`Error fetching media: ${error.message}`);
+        throw error;
+      }
       
+      addLog(`Successfully fetched ${data?.length || 0} media items`);
       console.log('All media items:', data);
       setVideos(data || []);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching media:', error);
+      addLog(`Exception: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -39,48 +53,210 @@ const VideoDebug = () => {
       return;
     }
 
+    // Validate URL format
     try {
+      new URL(newVideoUrl);
+    } catch (e) {
+      alert("Please enter a valid URL");
+      return;
+    }
+
+    try {
+      addLog(`Adding external video: ${newVideoTitle || 'Untitled'} - ${newVideoUrl}`);
+      
+      const videoData = {
+        url: newVideoUrl,
+        title: newVideoTitle || 'Test External Video',
+        alt_text: newVideoTitle || 'Test External Video',
+        category: 'Test'
+      };
+      
+      addLog(`Inserting data: ${JSON.stringify(videoData)}`);
+      
       const { data, error } = await supabase
         .from('media')
-        .insert([{
-          url: newVideoUrl,
-          title: newVideoTitle || 'Test External Video',
-          alt_text: newVideoTitle || 'Test External Video',
-          category: 'Test'
-        }])
+        .insert([videoData])
         .select()
         .single();
 
-      if (error) throw error;
+      if (error) {
+        addLog(`Database error: ${error.message}`);
+        console.error('Database error:', error);
+        alert(`Database error: ${error.message}`);
+        return;
+      }
       
+      addLog(`Successfully added video with ID: ${data.id}`);
       console.log('Added test video:', data);
       alert("Video added successfully!");
       setNewVideoUrl('');
       setNewVideoTitle('');
       fetchAllMedia(); // Refresh the list
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error adding test video:', error);
-      alert("Error adding video: " + error.message);
+      addLog(`Exception: ${error.message}`);
+      alert(`Error adding video: ${error.message || 'Unknown error'}`);
     }
   };
 
-  const deleteVideo = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this video?")) return;
+  const deleteVideo = async (id: string, title: string) => {
+    if (!window.confirm(`Are you sure you want to delete "${title}"?`)) return;
 
     try {
+      addLog(`Deleting video with ID: ${id}`);
+      
       const { error } = await supabase
         .from('media')
         .delete()
         .eq('id', id);
 
-      if (error) throw error;
+      if (error) {
+        addLog(`Database error: ${error.message}`);
+        console.error('Database error:', error);
+        alert(`Database error: ${error.message}`);
+        return;
+      }
       
+      addLog(`Successfully deleted video with ID: ${id}`);
       console.log('Deleted video:', id);
       alert("Video deleted successfully!");
       fetchAllMedia(); // Refresh the list
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting video:', error);
-      alert("Error deleting video: " + error.message);
+      addLog(`Exception: ${error.message}`);
+      alert(`Error deleting video: ${error.message || 'Unknown error'}`);
+    }
+  };
+
+  const testAuthStatus = async () => {
+    try {
+      addLog("Checking authentication status...");
+      
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError) {
+        addLog(`Auth error: ${authError.message}`);
+        alert(`Auth error: ${authError.message}`);
+        return;
+      }
+      
+      if (!user) {
+        addLog("No user is currently authenticated");
+        alert("No user is currently authenticated");
+        return;
+      }
+      
+      addLog(`User authenticated: ${user.email} (ID: ${user.id})`);
+      
+      // Test RLS by trying to insert with authenticated user
+      const testRecord = {
+        url: 'https://example.com/auth-test.mp4',
+        title: 'Auth Test Video',
+        alt_text: 'Auth Test Video',
+        category: 'Test'
+      };
+      
+      addLog(`Testing insert with authenticated user: ${JSON.stringify(testRecord)}`);
+      
+      const { data: insertData, error: insertError } = await supabase
+        .from('media')
+        .insert([testRecord])
+        .select()
+        .single();
+
+      if (insertError) {
+        addLog(`Authenticated insert failed: ${insertError.message}`);
+        alert(`Authenticated insert failed: ${insertError.message}`);
+        return;
+      }
+      
+      addLog(`Authenticated insert successful. New record ID: ${insertData.id}`);
+      
+      // Clean up
+      const { error: deleteError } = await supabase
+        .from('media')
+        .delete()
+        .eq('id', insertData.id);
+
+      if (deleteError) {
+        addLog(`Cleanup failed: ${deleteError.message}`);
+      } else {
+        addLog(`Cleanup successful. Record ${insertData.id} deleted`);
+      }
+      
+      alert("Authentication test passed!");
+    } catch (error: any) {
+      console.error('Auth test error:', error);
+      addLog(`Auth test exception: ${error.message}`);
+      alert(`Auth test failed: ${error.message || 'Unknown error'}`);
+    }
+  };
+
+  const testDatabaseConnection = async () => {
+    try {
+      addLog("Testing database connection...");
+      
+      // Test 1: Simple select query
+      const { data: selectData, error: selectError } = await supabase
+        .from('media')
+        .select('id')
+        .limit(1);
+
+      if (selectError) {
+        addLog(`Select test failed: ${selectError.message}`);
+        alert(`Select test failed: ${selectError.message}`);
+        return;
+      }
+      
+      addLog(`Select test successful. Found ${selectData?.length || 0} records`);
+      
+      // Test 2: Insert test
+      const testRecord = {
+        url: 'https://example.com/test.mp4',
+        title: 'Connection Test Video',
+        alt_text: 'Connection Test Video',
+        category: 'Test'
+      };
+      
+      addLog(`Insert test: ${JSON.stringify(testRecord)}`);
+      
+      const { data: insertData, error: insertError } = await supabase
+        .from('media')
+        .insert([testRecord])
+        .select()
+        .single();
+
+      if (insertError) {
+        addLog(`Insert test failed: ${insertError.message}`);
+        alert(`Insert test failed: ${insertError.message}`);
+        return;
+      }
+      
+      addLog(`Insert test successful. New record ID: ${insertData.id}`);
+      
+      // Test 3: Delete test
+      const { error: deleteError } = await supabase
+        .from('media')
+        .delete()
+        .eq('id', insertData.id);
+
+      if (deleteError) {
+        addLog(`Delete test failed: ${deleteError.message}`);
+        alert(`Delete test failed: ${deleteError.message}`);
+        return;
+      }
+      
+      addLog(`Delete test successful. Record ${insertData.id} deleted`);
+      
+      addLog("All database tests passed!");
+      alert("All database tests passed!");
+      
+      // Refresh the media list
+      fetchAllMedia();
+    } catch (error: any) {
+      console.error('Connection test error:', error);
+      addLog(`Connection test exception: ${error.message}`);
+      alert(`Connection test failed: ${error.message || 'Unknown error'}`);
     }
   };
 
@@ -100,20 +276,36 @@ const VideoDebug = () => {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Input
-              placeholder="Video Title"
-              value={newVideoTitle}
-              onChange={(e) => setNewVideoTitle(e.target.value)}
-            />
-            <Input
-              placeholder="Video URL"
-              value={newVideoUrl}
-              onChange={(e) => setNewVideoUrl(e.target.value)}
-            />
+            <div className="space-y-2">
+              <Label htmlFor="video-title">Video Title</Label>
+              <Input
+                id="video-title"
+                placeholder="Video Title"
+                value={newVideoTitle}
+                onChange={(e) => setNewVideoTitle(e.target.value)}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="video-url">Video URL</Label>
+              <Input
+                id="video-url"
+                placeholder="https://example.com/video.mp4"
+                value={newVideoUrl}
+                onChange={(e) => setNewVideoUrl(e.target.value)}
+              />
+            </div>
           </div>
-          <Button onClick={addExternalVideo} className="w-full">
-            Add Test Video
-          </Button>
+          <div className="flex gap-2">
+            <Button onClick={addExternalVideo} className="flex-1">
+              Add Test Video
+            </Button>
+            <Button onClick={testDatabaseConnection} variant="outline">
+              Test DB Connection
+            </Button>
+            <Button onClick={testAuthStatus} variant="outline">
+              Test Auth
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -128,7 +320,7 @@ const VideoDebug = () => {
                 <div>
                   <h3 className="font-medium">{video.title}</h3>
                   <p className="text-sm text-muted-foreground truncate">{video.url}</p>
-                  <div className="flex gap-2 mt-1">
+                  <div className="flex flex-wrap gap-2 mt-1">
                     <span className="text-xs bg-muted px-2 py-1 rounded">
                       Filename: {video.filename || 'None'}
                     </span>
@@ -141,7 +333,7 @@ const VideoDebug = () => {
                   </div>
                 </div>
                 <Button 
-                  onClick={() => deleteVideo(video.id)} 
+                  onClick={() => deleteVideo(video.id, video.title)} 
                   variant="destructive" 
                   size="sm"
                 >
@@ -150,6 +342,34 @@ const VideoDebug = () => {
               </div>
             ))}
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Debug Logs</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2 max-h-64 overflow-y-auto bg-muted p-3 rounded">
+            {logs.map((log, index) => (
+              <div key={index} className="text-sm font-mono">
+                {log}
+              </div>
+            ))}
+            {logs.length === 0 && (
+              <div className="text-muted-foreground text-center">
+                No logs yet. Perform an action to see logs.
+              </div>
+            )}
+          </div>
+          <Button 
+            onClick={() => setLogs([])} 
+            variant="outline" 
+            size="sm" 
+            className="mt-2"
+          >
+            Clear Logs
+          </Button>
         </CardContent>
       </Card>
     </div>
