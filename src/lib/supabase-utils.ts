@@ -1,4 +1,5 @@
 import { supabase } from '@/lib/supabase';
+import { toast } from '@/components/ui/sonner';
 
 /**
  * Utility functions for handling Supabase operations with better error handling
@@ -10,19 +11,38 @@ import { supabase } from '@/lib/supabase';
  */
 export const refreshSchemaCache = async (): Promise<boolean> => {
   try {
+    console.log('Refreshing schema cache...');
+    
     // Query all tables with comprehensive column selection to refresh schema cache
-    await supabase.from('articles').select('id, title, slug, content, status, created_at, updated_at, author_id, tags, featured_image, excerpt').limit(1);
-    await supabase.from('media').select('id, url, title, filename, category, description, alt_text, created_at').limit(1);
-    await supabase.from('comments').select('id, article_id, media_id, name, email, content, approved, created_at').limit(1);
-    await supabase.from('page_content').select('id, page_name, content, updated_at').limit(1);
+    const articlesResult = await supabase.from('articles').select('id, title, slug, content, status, created_at, updated_at, author_id, tags, featured_image, excerpt').limit(1);
+    console.log('Articles table schema refreshed:', articlesResult);
+    
+    const mediaResult = await supabase.from('media').select('id, url, title, filename, category, description, alt_text, created_at').limit(1);
+    console.log('Media table schema refreshed:', mediaResult);
+    
+    const commentsResult = await supabase.from('comments').select('id, article_id, media_id, name, email, content, approved, created_at').limit(1);
+    console.log('Comments table schema refreshed:', commentsResult);
+    
+    const pageContentResult = await supabase.from('page_content').select('id, page_name, content, updated_at').limit(1);
+    console.log('Page content table schema refreshed:', pageContentResult);
+    
+    // Additional query to ensure we have the latest schema for media table
+    // This specifically checks the constraint handling
+    const filenameCheck = await supabase.from('media').select('filename').limit(1);
+    console.log('Media filename constraint check:', filenameCheck);
+    
+    // Check for any errors in the queries
+    if (articlesResult.error) throw articlesResult.error;
+    if (mediaResult.error) throw mediaResult.error;
+    if (commentsResult.error) throw commentsResult.error;
+    if (pageContentResult.error) throw pageContentResult.error;
+    if (filenameCheck.error) throw filenameCheck.error;
     
     console.log('Schema cache refreshed successfully');
     return true;
   } catch (error) {
-    console.warn('Schema refresh warning (non-critical):', error);
-    // Even if there are warnings, we'll consider it successful
-    // as the schema might be refreshed
-    return true;
+    console.error('Schema refresh error:', error);
+    return false;
   }
 };
 

@@ -27,6 +27,7 @@ import {
 import { supabase, Media } from '@/lib/supabase';
 import { toast } from '@/components/ui/sonner';
 import { refreshSchemaCache, insertWithSchemaHandling, updateWithSchemaHandling, deleteWithSchemaHandling } from '@/lib/supabase-utils';
+import { AdminLogin } from '@/components/AdminLogin';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -88,9 +89,45 @@ const VideosManager = () => {
   const [refreshing, setRefreshing] = useState(false);
   // Add state for thumbnail upload
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  // Add state for authentication
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Handle login success
+  const handleLoginSuccess = () => {
+    setIsAuthenticated(true);
+    fetchVideos();
+  };
 
   useEffect(() => {
-    fetchVideos();
+    // Check authentication status
+    const checkAuth = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsAuthenticated(!!session);
+      
+      // Only fetch videos if authenticated
+      if (session) {
+        fetchVideos();
+      } else {
+        setLoading(false);
+      }
+    };
+    
+    checkAuth();
+    
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setIsAuthenticated(!!session);
+      if (session) {
+        fetchVideos();
+      } else {
+        setVideos([]);
+      }
+    });
+    
+    // Cleanup subscription
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Function to refresh Supabase schema cache
@@ -112,6 +149,14 @@ const VideosManager = () => {
   };
 
   const fetchVideos = async () => {
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      console.log('User not authenticated, skipping video fetch');
+      setLoading(false);
+      return;
+    }
+
     try {
       console.log('Fetching videos from database...');
       const { data, error } = await supabase
@@ -192,6 +237,13 @@ const VideosManager = () => {
   const uploadVideos = async () => {
     if (!selectedFiles) return;
 
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error("You must be logged in to upload videos. Please log in and try again.");
+      return;
+    }
+
     setUploading(true);
     const uploadedVideos: Video[] = [];
 
@@ -254,6 +306,15 @@ const VideosManager = () => {
           }
         } catch (insertError: any) {
           console.error('Database insert error:', insertError);
+          
+          // Handle RLS policy violation specifically
+          if (insertError.message && insertError.message.includes('violates row-level security policy')) {
+            toast.error("Authentication error: You must be logged in to upload videos.");
+            // Try to delete the uploaded file since we couldn't save to DB
+            await supabase.storage.from('media').remove([filePath]);
+            continue;
+          }
+          
           toast.error(`Failed to save ${file.name} to database: ${insertError.message}`);
           // Try to delete the uploaded file since we couldn't save to DB
           await supabase.storage.from('media').remove([filePath]);
@@ -296,16 +357,27 @@ const VideosManager = () => {
       return;
     }
 
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error("You must be logged in to add videos. Please log in and try again.");
+      return;
+    }
+
     try {
       console.log('Adding external video with enhanced approach');
       
       // Try the insert operation with enhanced error handling
-      const insertResult = await insertWithSchemaHandling('media', {
+      // For external videos, we need to provide a filename or handle the constraint
+      const insertData = {
         url: externalVideoUrl,
         title: externalVideoTitle || 'External Video',
         category: 'External',
-        description: '' // Add empty description as default
-      });
+        description: '', // Add empty description as default
+        filename: null // Explicitly set filename to null for external videos
+      };
+      
+      const insertResult = await insertWithSchemaHandling('media', insertData);
 
       // Fetch the inserted record
       const { data: fetchData, error: fetchError } = await supabase
@@ -351,6 +423,10 @@ const VideosManager = () => {
       )) {
         toast.info("Schema cache issue detected. Click the 'Refresh Schema' button in the top right corner, then try again.");
         toast.error(`Schema cache error: ${error.message || 'Unknown error'}`);
+      } else if (error.message && error.message.includes('violates row-level security policy')) {
+        // Handle the RLS policy violation
+        toast.error("Authentication error: You must be logged in to add videos. Please log in and try again.");
+        console.error("RLS policy violation:", error);
       } else {
         toast.error(`Failed to add external video: ${error.message || 'Unknown error'}`);
       }
@@ -359,6 +435,13 @@ const VideosManager = () => {
 
   const handleDelete = async (video: Video) => {
     if (!window.confirm(`Are you sure you want to delete "${video.title || video.filename}"?`)) return;
+
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error("You must be logged in to delete videos. Please log in and try again.");
+      return;
+    }
 
     try {
       // If it's not an external video, delete from storage
@@ -386,7 +469,13 @@ const VideosManager = () => {
       toast.success("Video deleted successfully.");
     } catch (error: any) {
       console.error('Error deleting video:', error);
-      toast.error(`Failed to delete video: ${error.message || 'Unknown error'}`);
+      
+      // Handle RLS policy violation specifically
+      if (error.message && error.message.includes('violates row-level security policy')) {
+        toast.error("Authentication error: You must be logged in to delete videos.");
+      } else {
+        toast.error(`Failed to delete video: ${error.message || 'Unknown error'}`);
+      }
     }
   };
 
@@ -402,6 +491,13 @@ const VideosManager = () => {
 
   const handleSaveEdit = async () => {
     if (!editingVideo) return;
+
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error("You must be logged in to edit videos. Please log in and try again.");
+      return;
+    }
 
     try {
       // Use the full schema for update
@@ -429,7 +525,13 @@ const VideosManager = () => {
       setEditingVideo(null);
     } catch (error: any) {
       console.error('Error updating video:', error);
-      toast.error(`Failed to update video details: ${error.message || 'Unknown error'}`);
+      
+      // Handle RLS policy violation specifically
+      if (error.message && error.message.includes('violates row-level security policy')) {
+        toast.error("Authentication error: You must be logged in to edit videos.");
+      } else {
+        toast.error(`Failed to update video details: ${error.message || 'Unknown error'}`);
+      }
     }
   };
 
@@ -477,6 +579,22 @@ const VideosManager = () => {
     return (
       <div className="flex items-center justify-center py-12">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">Video Management</h1>
+            <p className="text-base text-muted-foreground mt-1">
+              Please log in to access video management features
+            </p>
+          </div>
+        </div>
+        <AdminLogin onLoginSuccess={handleLoginSuccess} />
       </div>
     );
   }
