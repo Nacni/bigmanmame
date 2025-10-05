@@ -45,7 +45,7 @@ const Header = () => {
       <div className="container mx-auto px-4 h-20 flex items-center justify-between">
         {/* Logo */}
         <div className="text-2xl font-bold text-primary animate-glow">
-          Cabdalla Xuseen Cali
+          <span className="underline">Cabdalla Xuseen Cali</span>
         </div>
 
         {/* Desktop Navigation */}

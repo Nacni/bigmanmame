@@ -31,7 +31,7 @@ const Hero = () => {
             <div className="space-y-4">
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold leading-tight">
                 I'm{' '}
-                <span className="text-primary animate-glow">
+                <span className="text-primary animate-glow underline">
                   Cabdalla Xuseen Cali
                 </span>
                 , Transforming Somalia's Future

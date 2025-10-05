@@ -48,6 +48,51 @@ const SimpleVideoManager = () => {
     }
   };
 
+  // Helper function to retry with empty string approach
+  const addExternalVideoWithEmptyString = async () => {
+    try {
+      // Ensure we're still authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Authentication lost. Please refresh the page and log in again.");
+        return;
+      }
+
+      // Try with empty string for all potentially problematic fields
+      const insertData = {
+        url: externalVideoUrl,
+        title: externalVideoTitle || 'External Video',
+        category: 'External Link',
+        description: 'External video link',
+        filename: '',
+        alt_text: ''
+      };
+      
+      const { data, error } = await supabase
+        .from('media')
+        .insert(insertData)
+        .select();
+
+      if (error) {
+        console.error('Retry insert error:', error);
+        toast.error(`Retry failed: ${error.message}`);
+        return;
+      }
+
+      if (data && data[0]) {
+        setVideos(prev => [data[0], ...prev]);
+        toast.success("External video added successfully!");
+        setExternalVideoUrl('');
+        setExternalVideoTitle('');
+      }
+    } catch (error: any) {
+      console.error('Error in retry:', error);
+      toast.error(`Retry failed: ${error.message || 'Unknown error'}`);
+    } finally {
+      setAdding(false);
+    }
+  };
+
   const addExternalVideo = async () => {
     if (!externalVideoUrl) {
       toast.error("Please enter a video URL.");
@@ -73,13 +118,14 @@ const SimpleVideoManager = () => {
     
     try {
       // Simple insert with minimal required data for external videos
+      // Using empty string instead of null to avoid constraint violations
       const { data, error } = await supabase
         .from('media')
         .insert({
           url: externalVideoUrl,
           title: externalVideoTitle || 'External Video',
           category: 'External Link',
-          filename: null,  // This is key - external videos have null filename
+          filename: '',  // Using empty string instead of null to avoid constraint violations
           description: 'External video link'
         })
         .select();
@@ -94,7 +140,19 @@ const SimpleVideoManager = () => {
       }
     } catch (error: any) {
       console.error('Error adding video:', error);
-      toast.error(`Failed to add video: ${error.message}`);
+      
+      // Handle specific errors
+      if (error.message.includes('null value in column')) {
+        toast.error("Database constraint error: The system will try an alternative approach.");
+        // Try again with empty string for all fields
+        setTimeout(() => {
+          toast.info("Retrying with modified data...");
+          addExternalVideoWithEmptyString();
+        }, 1000);
+        return;
+      } else {
+        toast.error(`Failed to add video: ${error.message}`);
+      }
     } finally {
       setAdding(false);
     }

@@ -1,10 +1,62 @@
 const { createClient } = require('@supabase/supabase-js');
 
-// Configuration - Using the same credentials as in your project
+// Initialize Supabase client
 const supabaseUrl = 'https://prlcqrminsonibdsnzmy.supabase.co';
-const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBybGNxcm1pbnNvbmliZHNuem15Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwMzgzNzcsImV4cCI6MjA3MzYxNDM3N30.pCIQNH4jvlfAWIr1i1WPHWoPzHwxjsEv5QswIfftFRU';
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBybGNxcm1pbnNvbmliZHNuem15Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3MjY1NzQ5MDcsImV4cCI6MjA0MjE1MDkwN30.LqH0S069kK0fJyrrR07qZ1yJ4bZJZJzJzJzJzJzJzJz';
+const supabase = createClient(supabaseUrl, supabaseKey);
 
-const supabase = createClient(supabaseUrl, supabaseAnonKey);
+async function testExternalVideoInsert() {
+  console.log('🔍 Testing external video insert...');
+  
+  // Test data for external video
+  const externalVideoData = {
+    url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+    title: 'Test External Video',
+    category: 'External Link',
+    filename: null,
+    description: 'Test external video link'
+  };
+  
+  try {
+    console.log('Inserting external video data:', externalVideoData);
+    
+    // Try to insert external video
+    const { data, error } = await supabase
+      .from('media')
+      .insert(externalVideoData)
+      .select();
+      
+    if (error) {
+      console.error('❌ Insert failed:', error.message);
+      if (error.message.includes('violates row-level security')) {
+        console.log('This is expected if you\'re not authenticated');
+        console.log('Use the admin panel to add videos instead');
+      }
+      return;
+    }
+    
+    console.log('✅ External video inserted successfully:', data);
+    
+    // Clean up - delete the test video
+    if (data && data[0]) {
+      const { error: deleteError } = await supabase
+        .from('media')
+        .delete()
+        .eq('id', data[0].id);
+        
+      if (deleteError) {
+        console.error('Warning: Could not clean up test video:', deleteError.message);
+      } else {
+        console.log('✅ Test video cleaned up successfully');
+      }
+    }
+  } catch (err) {
+    console.error('❌ Unexpected error:', err.message);
+  }
+}
+
+// Run the test
+testExternalVideoInsert();
 
 async function testExternalVideo() {
   console.log('🔍 Testing external video insertion...\n');

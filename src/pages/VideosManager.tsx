@@ -392,6 +392,59 @@ const VideosManager = () => {
     }
   };
 
+  // Helper function to retry with empty string approach
+  const addExternalVideoWithEmptyString = async () => {
+    try {
+      // Ensure we're still authenticated
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) {
+        toast.error("Authentication lost. Please refresh the page and log in again.");
+        return;
+      }
+
+      // Try with empty string for all potentially problematic fields
+      const insertData = {
+        url: externalVideoUrl,
+        title: externalVideoTitle || 'External Video',
+        category: 'External Link',
+        description: 'External video link',
+        filename: '',
+        alt_text: ''
+      };
+      
+      const { data, error } = await supabase
+        .from('media')
+        .insert(insertData)
+        .select();
+
+      if (error) {
+        console.error('Retry insert error:', error);
+        toast.error(`Retry failed: ${error.message}`);
+        return;
+      }
+
+      if (data && data[0]) {
+        const newVideo: Video = {
+          ...data[0],
+          video_url: externalVideoUrl,
+          title: data[0].title || externalVideoTitle || 'External Video',
+          category: data[0].category || 'External Link',
+          is_external: true,
+          external_url: externalVideoUrl
+        };
+        
+        setVideos(prev => [newVideo, ...prev]);
+        toast.success("External video link added successfully!");
+        setExternalVideoUrl('');
+        setExternalVideoTitle('');
+        setIsUploadDialogOpen(false);
+      }
+    } catch (error: any) {
+      console.error('Error in retry:', error);
+      toast.error(`Retry failed: ${error.message || 'Unknown error'}`);
+    }
+  };
+
   const addExternalVideo = async () => {
     if (!externalVideoUrl) {
       toast.error("Please enter a video URL.");
@@ -417,12 +470,13 @@ const VideosManager = () => {
       console.log('Adding external video with simplified approach');
       
       // Simplified approach - insert with minimal required fields
+      // Using empty string instead of null to avoid constraint violations
       const insertData = {
         url: externalVideoUrl,
         title: externalVideoTitle || 'External Video',
         category: 'External Link',
         description: 'External video link',
-        filename: null  // This is the key - set to null for external links
+        filename: ''  // Using empty string instead of null to avoid constraint violations
       };
       
       console.log('Inserting external video data:', insertData);
@@ -438,9 +492,14 @@ const VideosManager = () => {
         
         // Provide more specific error messages
         if (error.message.includes('violates row-level security')) {
-          toast.error("Authentication error: Please refresh the page and try again.");
+          toast.error("Authentication error: Please refresh the page and ensure you're logged in.");
         } else if (error.message.includes('null value in column')) {
-          toast.error("Database error: Please try again or contact support.");
+          toast.error("Database constraint error: The system will try an alternative approach.");
+          // Try again with empty string instead of null
+          setTimeout(() => {
+            toast.info("Retrying with modified data...");
+            addExternalVideoWithEmptyString();
+          }, 1000);
         } else {
           toast.error(`Failed to add external video: ${error.message}`);
         }
@@ -543,7 +602,8 @@ const VideosManager = () => {
         title: editingVideo.title,
         alt_text: editingVideo.alt_text,
         description: editingVideo.description,
-        category: editingVideo.category || 'General'
+        category: editingVideo.category || 'General',
+        thumbnail_url: editingVideo.thumbnail_url || null
       };
       
       // Only include filename if it exists

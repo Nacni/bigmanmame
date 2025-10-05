@@ -46,6 +46,7 @@ export interface Media {
   title?: string;
   description?: string;
   category?: string;
+  thumbnail_url?: string;
   created_at: string;
 }
 

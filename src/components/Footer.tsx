@@ -18,7 +18,7 @@ const Footer = () => {
         <div className="grid md:grid-cols-3 gap-8 mb-8">
           {/* Brand */}
           <div className="space-y-4">
-            <h3 className="text-2xl font-bold text-primary">Cabdalla Xuseen Cali</h3>
+            <h3 className="text-2xl font-bold text-primary underline">Cabdalla Xuseen Cali</h3>
             <p className="text-muted-foreground">
               {t('footer.description')}
             </p>
@@ -66,7 +66,7 @@ const Footer = () => {
         {/* Copyright */}
         <div className="flex flex-col md:flex-row justify-between items-center space-y-4 md:space-y-0">
           <p className="text-muted-foreground text-center md:text-left">
-            © {currentYear} Cabdalla Xuseen Cali. {t('footer.rights')}
+            © {currentYear} <span className="underline">Cabdalla Xuseen Cali</span>. {t('footer.rights')}
           </p>
           
           <div className="flex items-center text-muted-foreground">
