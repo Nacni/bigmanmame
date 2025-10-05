@@ -9,7 +9,18 @@ import VideosManager from '@/pages/VideosManager';
 import TextContentManager from '@/pages/TextContentManager';
 import CommentsList from '@/pages/CommentsList';
 import SchemaTestPage from '@/pages/SchemaTestPage';
+import Index from '@/pages/Index';
+import About from '@/pages/About';
+import Services from '@/pages/Services';
+import Portfolio from '@/pages/Portfolio';
+import Blog from '@/pages/Blog';
+import BlogPost from '@/pages/BlogPost';
+import Contact from '@/pages/Contact';
+import Journey from '@/pages/Journey';
+import Videos from '@/pages/Videos';
 import NotFound from '@/pages/NotFound';
+import CommentTest from '@/pages/CommentTest';
+import VideoTest from '@/pages/VideoTest';
 import '@/App.css';
 
 function App() {
@@ -17,6 +28,17 @@ function App() {
     <Router>
       <Routes>
         {/* Public routes */}
+        <Route path="/" element={<Index />} />
+        <Route path="/about" element={<About />} />
+        <Route path="/services" element={<Services />} />
+        <Route path="/portfolio" element={<Portfolio />} />
+        <Route path="/blog" element={<Blog />} />
+        <Route path="/blog/:slug" element={<BlogPost />} />
+        <Route path="/contact" element={<Contact />} />
+        <Route path="/journey" element={<Journey />} />
+        <Route path="/videos" element={<Videos />} />
+        <Route path="/comment-test" element={<CommentTest />} />
+        <Route path="/video-test" element={<VideoTest />} /> {/* Add the video test route */}
         <Route path="/login" element={<Login />} />
         
         {/* Protected admin routes */}

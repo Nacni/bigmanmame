@@ -2,242 +2,135 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { toast } from '@/components/ui/sonner';
+import { Link, Play, Upload } from 'lucide-react';
 
 const VideoTest = () => {
-  const [user, setUser] = useState<any>(null);
-  const [authChecked, setAuthChecked] = useState(false);
-  const [testUrl, setTestUrl] = useState('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
-  const [testTitle, setTestTitle] = useState('Test Video');
-  const [result, setResult] = useState('');
-  const [logs, setLogs] = useState<string[]>([]);
+  const [externalVideoUrl, setExternalVideoUrl] = useState('');
+  const [externalVideoTitle, setExternalVideoTitle] = useState('');
+  const [uploading, setUploading] = useState(false);
 
-  useEffect(() => {
-    checkAuth();
-  }, []);
-
-  const addLog = (message: string) => {
-    const timestamp = new Date().toLocaleTimeString();
-    setLogs(prev => [...prev, `[${timestamp}] ${message}`]);
-    console.log(`[${timestamp}] ${message}`);
-  };
-
-  const checkAuth = async () => {
-    try {
-      addLog('Checking authentication status...');
-      const { data: { user }, error } = await supabase.auth.getUser();
-      
-      if (error) {
-        addLog(`Auth error: ${error.message}`);
-        setResult(`Auth error: ${error.message}`);
-        return;
-      }
-      
-      if (!user) {
-        addLog('No user authenticated');
-        setResult('No user authenticated. Please log in first.');
-        return;
-      }
-      
-      setUser(user);
-      setAuthChecked(true);
-      addLog(`Authenticated as: ${user.email}`);
-      setResult(`Authenticated as: ${user.email}`);
-    } catch (error: any) {
-      addLog(`Auth check failed: ${error.message}`);
-      setResult(`Auth check failed: ${error.message}`);
-    }
-  };
-
-  const testSchema = async () => {
-    try {
-      addLog('Testing database schema...');
-      setResult('Testing database schema...');
-      
-      // Get table info
-      const { data, error } = await supabase
-        .from('media')
-        .select('*')
-        .limit(1);
-        
-      if (error) {
-        addLog(`Schema test failed: ${error.message}`);
-        setResult(`Schema test failed: ${error.message}`);
-        return;
-      }
-      
-      if (data && data.length > 0) {
-        const columns = Object.keys(data[0]);
-        addLog(`Table columns: ${columns.join(', ')}`);
-        setResult(`Table columns: ${columns.join(', ')}`);
-        console.log('Table data sample:', data[0]);
-      } else {
-        addLog('Table is empty or inaccessible');
-        setResult('Table is empty or inaccessible');
-      }
-    } catch (error: any) {
-      addLog(`Schema test exception: ${error.message}`);
-      setResult(`Schema test exception: ${error.message}`);
-    }
-  };
-
-  const testInsert = async () => {
-    if (!authChecked || !user) {
-      setResult('Please check authentication first');
+  const addExternalVideo = async () => {
+    if (!externalVideoUrl) {
+      toast.error("Please enter a video URL.");
       return;
     }
 
+    // Validate URL format
     try {
-      addLog('Testing video insert...');
-      setResult('Testing video insert...');
+      new URL(externalVideoUrl);
+    } catch (e) {
+      toast.error("Please enter a valid URL.");
+      return;
+    }
+
+    setUploading(true);
+    
+    try {
+      console.log('Adding external video with test approach');
       
-      // Use minimal fields to avoid schema issues
-      const videoData = {
-        url: testUrl,
-        title: testTitle
+      // Try the insert operation
+      const insertData = {
+        url: externalVideoUrl,
+        title: externalVideoTitle || 'External Video',
+        category: 'External',
+        description: '', // Add empty description as default
+        filename: null // Explicitly set filename to null for external videos
       };
       
-      addLog(`Inserting minimal data: ${JSON.stringify(videoData)}`);
-      
-      // Try to insert with minimal fields
-      let result = await supabase
-        .from('media')
-        .insert([videoData])
-        .select()
-        .single();
-
-      // If it's a schema cache error, try again with a different approach
-      if (result.error && result.error.message.includes('schema cache')) {
-        addLog("Schema cache issue detected. Trying to refresh...");
-        // Try to refresh the schema cache by getting table info
-        await supabase.from('media').select('id,url,title').limit(1);
-        // Retry the insert with minimal fields
-        result = await supabase
-          .from('media')
-          .insert([videoData])
-          .select()
-          .single();
-      }
-
-      if (result.error) {
-        addLog(`Insert failed: ${result.error.message}`);
-        addLog(`Error details: ${JSON.stringify(result.error)}`);
-        setResult(`Insert failed: ${result.error.message}`);
-        return;
-      }
-      
-      addLog(`Insert successful! ID: ${result.data.id}`);
-      setResult(`Insert successful! ID: ${result.data.id}`);
-      
-      // Test deletion to clean up
-      addLog('Testing deletion...');
-      let deleteResult = await supabase
-        .from('media')
-        .delete()
-        .eq('id', result.data.id);
-        
-      // If it's a schema cache error, try again
-      if (deleteResult.error && deleteResult.error.message.includes('schema cache')) {
-        addLog("Schema cache issue detected during deletion. Trying to refresh...");
-        // Try to refresh the schema cache
-        await supabase.from('media').select('id,url,title').limit(1);
-        // Retry the deletion
-        deleteResult = await supabase
-          .from('media')
-          .delete()
-          .eq('id', result.data.id);
-      }
-        
-      if (deleteResult.error) {
-        addLog(`Delete failed: ${deleteResult.error.message}`);
-      } else {
-        addLog('Delete successful');
-      }
-    } catch (error: any) {
-      addLog(`Exception: ${error.message}`);
-      setResult(`Exception: ${error.message}`);
-    }
-  };
-
-  const testSelect = async () => {
-    try {
-      addLog('Testing select query...');
-      setResult('Testing select query...');
+      console.log('Inserting data:', insertData);
       
       const { data, error } = await supabase
         .from('media')
-        .select('*')
-        .limit(5);
-        
+        .insert(insertData)
+        .select();
+
       if (error) {
-        addLog(`Select failed: ${error.message}`);
-        setResult(`Select failed: ${error.message}`);
+        console.error('Insert error:', error);
+        toast.error(`Failed to add external video: ${error.message}`);
         return;
       }
+
+      console.log('Successfully added external video:', data);
       
-      addLog(`Select successful! Found ${data.length} records`);
-      setResult(`Select successful! Found ${data.length} records`);
-      console.log('Select data:', data);
+      if (data && data[0]) {
+        toast.success("External video added successfully.");
+        setExternalVideoUrl('');
+        setExternalVideoTitle('');
+      }
     } catch (error: any) {
-      addLog(`Exception: ${error.message}`);
-      setResult(`Exception: ${error.message}`);
+      console.error('Error adding external video:', error);
+      toast.error(`Failed to add external video: ${error.message || 'Unknown error'}`);
+    } finally {
+      setUploading(false);
     }
   };
 
   return (
-    <div className="container mx-auto py-8">
-      <Card>
-        <CardHeader>
-          <CardTitle>Video Insert Test</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    <div className="min-h-screen bg-background py-12">
+      <div className="container mx-auto px-4 max-w-2xl">
+        <div className="text-center mb-12">
+          <h1 className="text-3xl font-bold text-foreground mb-4">Video Test Page</h1>
+          <p className="text-muted-foreground">
+            Test the external video upload functionality to verify it's working correctly
+          </p>
+        </div>
+
+        <Card className="bg-card border-border">
+          <CardHeader>
+            <CardTitle className="flex items-center">
+              <Link className="mr-2 h-5 w-5" />
+              Add External Video
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
             <div className="space-y-2">
-              <Label htmlFor="test-title">Video Title</Label>
+              <Label htmlFor="video-title">Video Title</Label>
               <Input
-                id="test-title"
-                value={testTitle}
-                onChange={(e) => setTestTitle(e.target.value)}
-                placeholder="Test Video"
+                id="video-title"
+                placeholder="Enter video title"
+                value={externalVideoTitle}
+                onChange={(e) => setExternalVideoTitle(e.target.value)}
+                className="bg-input border-border"
               />
             </div>
+            
             <div className="space-y-2">
-              <Label htmlFor="test-url">Video URL</Label>
+              <Label htmlFor="video-url">Video URL</Label>
               <Input
-                id="test-url"
-                value={testUrl}
-                onChange={(e) => setTestUrl(e.target.value)}
+                id="video-url"
                 placeholder="https://example.com/video.mp4"
+                value={externalVideoUrl}
+                onChange={(e) => setExternalVideoUrl(e.target.value)}
+                className="bg-input border-border"
               />
+              <p className="text-sm text-muted-foreground">
+                Supports any video URL (YouTube, Vimeo, direct links, etc.)
+              </p>
             </div>
-          </div>
-          
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={checkAuth}>Check Auth</Button>
-            <Button onClick={testInsert} disabled={!authChecked}>Test Insert</Button>
-            <Button onClick={testSelect} variant="outline">Test Select</Button>
-          </div>
-          
-          <div className="p-4 bg-muted rounded-lg">
-            <h3 className="font-medium mb-2">Result:</h3>
-            <p className="text-sm">{result}</p>
-          </div>
-          
-          <div className="p-4 bg-muted rounded-lg">
-            <h3 className="font-medium mb-2">Logs:</h3>
-            <div className="space-y-1 max-h-64 overflow-y-auto text-sm font-mono">
-              {logs.map((log, index) => (
-                <div key={index}>{log}</div>
-              ))}
-            </div>
-            {logs.length === 0 && (
-              <p className="text-muted-foreground text-sm">No logs yet. Run a test to see logs.</p>
-            )}
-          </div>
-        </CardContent>
-      </Card>
+
+            <Button
+              onClick={addExternalVideo}
+              disabled={uploading}
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              {uploading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary-foreground mr-2"></div>
+                  Adding Video...
+                </div>
+              ) : (
+                <>
+                  <Link className="mr-2 h-4 w-4" />
+                  Add External Video
+                </>
+              )}
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 };
