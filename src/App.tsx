@@ -21,6 +21,7 @@ import Videos from '@/pages/Videos';
 import NotFound from '@/pages/NotFound';
 import CommentTest from '@/pages/CommentTest';
 import VideoTest from '@/pages/VideoTest';
+import SimpleVideoManager from '@/pages/SimpleVideoManager';
 import '@/App.css';
 
 function App() {
@@ -38,7 +39,7 @@ function App() {
         <Route path="/journey" element={<Journey />} />
         <Route path="/videos" element={<Videos />} />
         <Route path="/comment-test" element={<CommentTest />} />
-        <Route path="/video-test" element={<VideoTest />} /> {/* Add the video test route */}
+        <Route path="/video-test" element={<VideoTest />} />
         <Route path="/login" element={<Login />} />
         
         {/* Protected admin routes */}
@@ -48,6 +49,7 @@ function App() {
           <Route path="articles/new" element={<ArticleEditor />} />
           <Route path="articles/edit/:id" element={<ArticleEditor />} />
           <Route path="videos" element={<VideosManager />} />
+          <Route path="videos-simple" element={<SimpleVideoManager />} /> {/* Add simple video manager */}
           <Route path="content" element={<TextContentManager />} />
           <Route path="comments" element={<CommentsList />} />
           <Route path="schema-test" element={<SchemaTestPage />} />

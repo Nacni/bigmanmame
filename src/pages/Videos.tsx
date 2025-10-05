@@ -81,16 +81,12 @@ const Videos = () => {
 
       if (error) throw error;
       
-      // Filter only video files - include external videos (those with NULL filename)
-      const videoFiles = (data || []).filter(item => 
-        item.filename?.match(/\.(mp4|avi|mov|wmv|flv|webm)$/i) || 
-        item.filename === null || // Include items with explicit NULL filename
-        item.filename === '' // Include items with empty filename (fallback)
-      ).map(item => ({
+      // Simpler filtering - include all records, mark external ones
+      const videoFiles = (data || []).map(item => ({
         ...item,
         title: item.title || item.filename?.split('.')[0] || 'Untitled Video',
         category: item.category || 'General',
-        is_external: item.filename === null || item.filename === '' // Mark as external if filename is NULL or empty
+        is_external: !item.filename || item.filename === '' || item.category === 'External Link' // If no filename or External Link category, it's an external link
       }));
       
       setVideos(videoFiles);
@@ -246,12 +242,13 @@ const Videos = () => {
       }));
     };
     
-    // Handle play video
+    // Handle play video - improved version
     const handlePlayVideo = () => {
       const url = video.videoUrl || video.url;
       if (!url) return;
-      // Always play inside modal; VideoPlayer will embed YouTube/Vimeo
-      // and show a themed fallback for other external providers
+      
+      // For external videos, always play inside modal
+      // The VideoPlayer component will handle embedding YouTube/Vimeo properly
       setCurrentVideo(video);
       setIsVideoModalOpen(true);
     };
@@ -307,7 +304,7 @@ const Videos = () => {
               onClick={handlePlayVideo}
             >
               <ExternalLink className="mr-2 h-4 w-4" />
-              Play Video
+              {video.is_external ? 'Watch Video' : 'Play Video'}
             </Button>
             
             {/* Comment Toggle Button */}

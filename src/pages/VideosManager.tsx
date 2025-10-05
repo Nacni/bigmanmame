@@ -194,20 +194,16 @@ const VideosManager = () => {
       
       console.log('Fetched media data:', data);
       
-      // Filter only video files - include external videos (those with NULL filename)
-      const videoFiles = (data || []).filter(item => 
-        item.filename?.match(/\.(mp4|avi|mov|wmv|flv|webm)$/i) || 
-        item.filename === null || // Include items with explicit NULL filename
-        item.filename === '' // Include items with empty filename (fallback)
-      ).map(item => ({
+      // Simpler filtering - include all records, mark external ones
+      const videoFiles = (data || []).map(item => ({
         ...item,
         video_url: item.url,
         title: item.title || item.filename?.split('.')[0] || 'Untitled Video',
         category: item.category || 'General',
-        is_external: item.filename === null || item.filename === '' // Mark as external if filename is NULL or empty
+        is_external: !item.filename || item.filename === '' || item.category === 'External Link' // If no filename or External Link category, it's an external link
       }));
       
-      console.log('Filtered video files:', videoFiles);
+      console.log('Processed video files:', videoFiles);
       setVideos(videoFiles);
     } catch (error: any) {
       console.error('Error fetching videos:', error);
@@ -397,8 +393,6 @@ const VideosManager = () => {
   };
 
   const addExternalVideo = async () => {
-    console.log('addExternalVideo called');
-    
     if (!externalVideoUrl) {
       toast.error("Please enter a video URL.");
       return;
@@ -412,92 +406,68 @@ const VideosManager = () => {
       return;
     }
 
+    // Check if user is authenticated
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      toast.error("You must be logged in to add videos. Please log in through the admin panel first.");
+      return;
+    }
+
     try {
-      console.log('Adding external video with enhanced approach');
+      console.log('Adding external video with simplified approach');
       
-      // Check if user is authenticated (unless in bypass mode)
-      if (!bypassMode) {
-        console.log('Checking authentication status for external video add...');
-        const { data: { session }, error: authError } = await supabase.auth.getSession();
-        console.log('Auth session for external video:', session);
-        console.log('Auth error for external video:', authError);
-        
-        // Try the insert operation with enhanced error handling
-        // For external videos, we need to provide a filename or handle the constraint
-        if (!session) {
-          console.log('User not authenticated, attempting insert anyway (will likely fail with RLS error)');
-        }
-      }
-      
+      // Simplified approach - insert with minimal required fields
       const insertData = {
         url: externalVideoUrl,
         title: externalVideoTitle || 'External Video',
-        category: 'External',
-        description: '', // Add empty description as default
-        // Use null to properly mark as external video
-        filename: null
+        category: 'External Link',
+        description: 'External video link',
+        filename: null  // This is the key - set to null for external links
       };
       
-      console.log('Inserting data:', insertData);
+      console.log('Inserting external video data:', insertData);
       
-      const insertResult = await insertWithSchemaHandling('media', insertData);
-      console.log('Insert result:', insertResult);
-
-      // Fetch the inserted record
-      const { data: fetchData, error: fetchError } = await supabase
+      // Direct insert without complex error handling for now
+      const { data, error } = await supabase
         .from('media')
-        .select('*')
-        .eq('url', externalVideoUrl)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+        .insert(insertData)
+        .select();
 
-      if (fetchError) {
-        console.error('Fetch error:', fetchError);
-        toast.error(`Video added but could not retrieve: ${fetchError.message}`);
+      if (error) {
+        console.error('Insert error:', error);
+        
+        // Provide more specific error messages
+        if (error.message.includes('violates row-level security')) {
+          toast.error("Authentication error: Please refresh the page and try again.");
+        } else if (error.message.includes('null value in column')) {
+          toast.error("Database error: Please try again or contact support.");
+        } else {
+          toast.error(`Failed to add external video: ${error.message}`);
+        }
         return;
       }
 
-      console.log('Successfully added external video:', fetchData);
+      console.log('Successfully added external video:', data);
       
-      if (fetchData) {
+      if (data && data[0]) {
         const newVideo: Video = {
-          ...fetchData,
+          ...data[0],
           video_url: externalVideoUrl,
-          title: fetchData.title || externalVideoTitle || 'External Video',
-          category: fetchData.category || 'General',
+          title: data[0].title || externalVideoTitle || 'External Video',
+          category: data[0].category || 'External Link',
           is_external: true,
           external_url: externalVideoUrl
         };
         
         setVideos(prev => [newVideo, ...prev]);
-        toast.success("External video added successfully.");
+        toast.success("External video link added successfully!");
         setExternalVideoUrl('');
         setExternalVideoTitle('');
         setIsUploadDialogOpen(false);
       }
     } catch (error: any) {
       console.error('Error adding external video:', error);
-      
-      // If it's a schema cache error, try to refresh and retry
-      if (error.message && (
-        error.message.includes('schema cache') || 
-        error.message.includes('column') || 
-        error.message.includes('Could not find the')
-      )) {
-        toast.info("Schema cache issue detected. Click the 'Refresh Schema' button in the top right corner, then try again.");
-        toast.error(`Schema cache error: ${error.message || 'Unknown error'}`);
-      } else if (error.message && error.message.includes('violates row-level security policy')) {
-        // Handle the RLS policy violation
-        toast.error("Authentication required: Please log in to add videos. If you don't see a login form, try using bypass mode.");
-        console.error("RLS policy violation:", error);
-      } else if (error.message && error.message.includes('violates not-null constraint')) {
-        // Handle the filename constraint issue - this is likely still an RLS issue
-        toast.error("Operation failed. Please try refreshing the page and ensure you're logged in.");
-        console.error("Constraint error details:", error);
-      } else {
-        toast.error(`Failed to add external video: ${error.message || 'Unknown error'}`);
-      }
+      toast.error(`Failed to add external video: ${error.message || 'Unknown error'}`);
     }
   };
 
