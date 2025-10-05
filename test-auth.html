@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .log {
+            background-color: #f8f8f8;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            margin: 20px 0;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .success {
+            background-color: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .error {
+            background-color: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        input {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Authentication Test</h1>
+        <p>This tool will help you test authentication and video upload functionality.</p>
+        
+        <div id="status" class="status" style="display: none;"></div>
+        
+        <div>
+            <h2>Authentication</h2>
+            <button id="checkAuthBtn">Check Auth Status</button>
+            <button id="logoutBtn">Logout</button>
+        </div>
+        
+        <div>
+            <h2>Login</h2>
+            <input type="email" id="email" placeholder="Email">
+            <input type="password" id="password" placeholder="Password">
+            <br>
+            <button id="loginBtn">Login</button>
+            <button id="signupBtn">Sign Up</button>
+        </div>
+        
+        <div>
+            <h2>Test Video Upload</h2>
+            <button id="testInsertBtn" disabled>Test Insert (Requires Auth)</button>
+        </div>
+        
+        <div class="log" id="log"></div>
+    </div>
+
+    <script>
+        // Supabase configuration
+        const supabaseUrl = 'https://prlcqrminsonibdsnzmy.supabase.co';
+        const supabaseAnonKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBybGNxcm1pbnNvbmliZHNuem15Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwMzgzNzcsImV4cCI6MjA3MzYxNDM3N30.pCIQNH4jvlfAWIr1i1WPHWoPzHwxjsEv5QswIfftFRU';
+        
+        const supabase = supabase.createClient(supabaseUrl, supabaseAnonKey);
+        
+        const logElement = document.getElementById('log');
+        const statusElement = document.getElementById('status');
+        const checkAuthBtn = document.getElementById('checkAuthBtn');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const loginBtn = document.getElementById('loginBtn');
+        const signupBtn = document.getElementById('signupBtn');
+        const testInsertBtn = document.getElementById('testInsertBtn');
+        const emailInput = document.getElementById('email');
+        const passwordInput = document.getElementById('password');
+        
+        function log(message) {
+            const timestamp = new Date().toISOString();
+            logElement.textContent += `[${timestamp}] ${message}\n`;
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        function showStatus(message, isSuccess) {
+            statusElement.textContent = message;
+            statusElement.className = `status ${isSuccess ? 'success' : 'error'}`;
+            statusElement.style.display = 'block';
+        }
+        
+        async function checkAuthStatus() {
+            log('Checking authentication status...');
+            try {
+                const { data: { session }, error } = await supabase.auth.getSession();
+                log(`Session data: ${JSON.stringify(session, null, 2)}`);
+                log(`Session error: ${error ? error.message : 'None'}`);
+                
+                if (session) {
+                    showStatus('User is authenticated', true);
+                    testInsertBtn.disabled = false;
+                } else {
+                    showStatus('User is not authenticated', false);
+                    testInsertBtn.disabled = true;
+                }
+            } catch (error) {
+                log(`Error checking auth status: ${error.message}`);
+                showStatus(`Error: ${error.message}`, false);
+            }
+        }
+        
+        async function login() {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            
+            if (!email || !password) {
+                showStatus('Please enter email and password', false);
+                return;
+            }
+            
+            log(`Logging in with email: ${email}`);
+            try {
+                const { data, error } = await supabase.auth.signInWithPassword({
+                    email,
+                    password
+                });
+                
+                if (error) throw error;
+                
+                log(`Login successful: ${JSON.stringify(data, null, 2)}`);
+                showStatus('Login successful!', true);
+                testInsertBtn.disabled = false;
+            } catch (error) {
+                log(`Login error: ${error.message}`);
+                showStatus(`Login failed: ${error.message}`, false);
+            }
+        }
+        
+        async function signup() {
+            const email = emailInput.value;
+            const password = passwordInput.value;
+            
+            if (!email || !password) {
+                showStatus('Please enter email and password', false);
+                return;
+            }
+            
+            log(`Signing up with email: ${email}`);
+            try {
+                const { data, error } = await supabase.auth.signUp({
+                    email,
+                    password
+                });
+                
+                if (error) throw error;
+                
+                log(`Signup result: ${JSON.stringify(data, null, 2)}`);
+                showStatus('Signup successful! Check your email for confirmation.', true);
+            } catch (error) {
+                log(`Signup error: ${error.message}`);
+                showStatus(`Signup failed: ${error.message}`, false);
+            }
+        }
+        
+        async function logout() {
+            log('Logging out...');
+            try {
+                const { error } = await supabase.auth.signOut();
+                
+                if (error) throw error;
+                
+                log('Logout successful');
+                showStatus('Logout successful', true);
+                testInsertBtn.disabled = true;
+            } catch (error) {
+                log(`Logout error: ${error.message}`);
+                showStatus(`Logout failed: ${error.message}`, false);
+            }
+        }
+        
+        async function testInsert() {
+            log('Testing media insert...');
+            try {
+                // Test inserting a record
+                const testRecord = {
+                    url: 'https://example.com/test-video.mp4',
+                    title: 'Test Video',
+                    filename: null,
+                    category: 'Test'
+                };
+                
+                log(`Inserting test record: ${JSON.stringify(testRecord, null, 2)}`);
+                const { data, error } = await supabase
+                    .from('media')
+                    .insert(testRecord)
+                    .select();
+                
+                if (error) {
+                    log(`Insert failed: ${error.message}`);
+                    log(`Error code: ${error.code}`);
+                    showStatus(`Insert failed: ${error.message}`, false);
+                } else {
+                    log(`Insert successful: ${JSON.stringify(data, null, 2)}`);
+                    showStatus('Insert successful!', true);
+                    
+                    // Clean up
+                    if (data && data[0]) {
+                        await supabase.from('media').delete().eq('id', data[0].id);
+                        log('Cleaned up test record');
+                    }
+                }
+            } catch (error) {
+                log(`Unexpected error: ${error.message}`);
+                showStatus(`Error: ${error.message}`, false);
+            }
+        }
+        
+        // Event listeners
+        checkAuthBtn.addEventListener('click', checkAuthStatus);
+        logoutBtn.addEventListener('click', logout);
+        loginBtn.addEventListener('click', login);
+        signupBtn.addEventListener('click', signup);
+        testInsertBtn.addEventListener('click', testInsert);
+        
+        // Initialize
+        log('Authentication Test Tool loaded. Click "Check Auth Status" to begin.');
+        checkAuthStatus();
+    </script>
+</body>
+</html>

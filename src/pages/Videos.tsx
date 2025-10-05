@@ -81,15 +81,16 @@ const Videos = () => {
 
       if (error) throw error;
       
-      // Filter only video files - include external videos (those without filename)
+      // Filter only video files - include external videos (those with NULL filename)
       const videoFiles = (data || []).filter(item => 
         item.filename?.match(/\.(mp4|avi|mov|wmv|flv|webm)$/i) || 
-        !item.filename // Include all items without filename (external videos)
+        item.filename === null || // Include items with explicit NULL filename
+        item.filename === '' // Include items with empty filename (fallback)
       ).map(item => ({
         ...item,
         title: item.title || item.filename?.split('.')[0] || 'Untitled Video',
         category: item.category || 'General',
-        is_external: !item.filename // If no filename, it's an external video
+        is_external: item.filename === null || item.filename === '' // Mark as external if filename is NULL or empty
       }));
       
       setVideos(videoFiles);
@@ -148,12 +149,14 @@ const Videos = () => {
     }
   };
 
-  const handleVideoClick = (videoUrl: string) => {
-    // For external videos, open in new tab
-    // For uploaded videos, we'll show them in modal
-    if (videoUrl !== '#') {
+  const handleVideoClick = (videoUrl: string, isExternal?: boolean) => {
+    if (!videoUrl || videoUrl === '#') return;
+    if (isExternal) {
       window.open(videoUrl, '_blank');
+      return;
     }
+    setCurrentVideo({ ...currentVideo, videoUrl });
+    setIsVideoModalOpen(true);
   };
 
   // Use a placeholder thumbnail for dynamic videos
@@ -245,14 +248,12 @@ const Videos = () => {
     
     // Handle play video
     const handlePlayVideo = () => {
-      // For external videos, open in new tab
-      if (video.is_external) {
-        window.open(video.videoUrl || video.url, '_blank');
-      } else {
-        // For uploaded videos, open in modal
-        setCurrentVideo(video);
-        setIsVideoModalOpen(true);
-      }
+      const url = video.videoUrl || video.url;
+      if (!url) return;
+      // Always play inside modal; VideoPlayer will embed YouTube/Vimeo
+      // and show a themed fallback for other external providers
+      setCurrentVideo(video);
+      setIsVideoModalOpen(true);
     };
     
     return (
@@ -272,7 +273,7 @@ const Videos = () => {
                 onClick={handlePlayVideo}
               >
                 <Play className="mr-2 h-5 w-5" />
-                {video.is_external ? 'Watch on Platform' : 'Play Video'}
+                Play Video
               </Button>
             </div>
             {video.is_external && (
@@ -306,7 +307,7 @@ const Videos = () => {
               onClick={handlePlayVideo}
             >
               <ExternalLink className="mr-2 h-4 w-4" />
-              {video.is_external ? 'Watch on Platform' : 'Play Video'}
+              Play Video
             </Button>
             
             {/* Comment Toggle Button */}

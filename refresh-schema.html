@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Schema Cache Refresh Tool</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        button:disabled {
+            background-color: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 4px;
+            padding: 15px;
+            margin-top: 20px;
+            height: 300px;
+            overflow-y: auto;
+            font-family: monospace;
+            white-space: pre-wrap;
+        }
+        .success {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .info {
+            color: #17a2b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Schema Cache Refresh Tool</h1>
+        <p>This tool will help refresh your Supabase schema cache to fix video upload and comment loading issues.</p>
+        
+        <button id="refreshBtn">Refresh Schema Cache</button>
+        
+        <div id="log" class="log">Click the button above to start refreshing the schema cache...</div>
+    </div>
+
+    <script type="module">
+        // Import Supabase client
+        import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+        
+        // Get elements
+        const refreshBtn = document.getElementById('refreshBtn');
+        const logElement = document.getElementById('log');
+        
+        // Add log message
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logEntry.className = type;
+            logElement.appendChild(logEntry);
+            logElement.scrollTop = logElement.scrollHeight;
+        }
+        
+        // Refresh schema cache
+        async function refreshSchemaCache() {
+            refreshBtn.disabled = true;
+            addLog('Starting schema cache refresh...', 'info');
+            
+            try {
+                // Initialize Supabase client
+                // You'll need to replace these with your actual Supabase URL and anon key
+                const supabaseUrl = localStorage.getItem('supabaseUrl') || prompt('Enter your Supabase URL:');
+                const supabaseAnonKey = localStorage.getItem('supabaseAnonKey') || prompt('Enter your Supabase Anon Key:');
+                
+                if (!supabaseUrl || !supabaseAnonKey) {
+                    addLog('Supabase credentials are required!', 'error');
+                    refreshBtn.disabled = false;
+                    return;
+                }
+                
+                // Store credentials for next time
+                localStorage.setItem('supabaseUrl', supabaseUrl);
+                localStorage.setItem('supabaseAnonKey', supabaseAnonKey);
+                
+                const supabase = createClient(supabaseUrl, supabaseAnonKey);
+                addLog('Supabase client initialized', 'info');
+                
+                // Refresh schema for each table
+                const tables = [
+                    { name: 'articles', columns: 'id, title, slug, content, status, created_at, updated_at, author_id, tags, featured_image, excerpt' },
+                    { name: 'media', columns: 'id, url, title, filename, category, description, alt_text, created_at' },
+                    { name: 'comments', columns: 'id, article_id, media_id, name, email, content, approved, created_at' },
+                    { name: 'page_content', columns: 'id, page_name, content, updated_at' }
+                ];
+                
+                let successCount = 0;
+                
+                for (const table of tables) {
+                    try {
+                        addLog(`Refreshing ${table.name} table schema...`, 'info');
+                        const { data, error } = await supabase
+                            .from(table.name)
+                            .select(table.columns)
+                            .limit(1);
+                        
+                        if (error) {
+                            addLog(`Error refreshing ${table.name}: ${error.message}`, 'error');
+                        } else {
+                            addLog(`Successfully refreshed ${table.name} schema`, 'success');
+                            successCount++;
+                        }
+                    } catch (error) {
+                        addLog(`Exception refreshing ${table.name}: ${error.message}`, 'error');
+                    }
+                }
+                
+                addLog(`\nSchema refresh complete: ${successCount}/${tables.length} tables refreshed`, 'info');
+                
+                if (successCount === tables.length) {
+                    addLog('✅ All table schemas have been refreshed successfully!', 'success');
+                    addLog('💡 You should now be able to upload videos and load comments without issues.', 'success');
+                } else {
+                    addLog('⚠️ Some tables failed to refresh. You may need to check your database connectivity.', 'error');
+                }
+                
+            } catch (error) {
+                addLog(`Critical error: ${error.message}`, 'error');
+            } finally {
+                refreshBtn.disabled = false;
+            }
+        }
+        
+        // Add event listener
+        refreshBtn.addEventListener('click', refreshSchemaCache);
+    </script>
+</body>
+</html>

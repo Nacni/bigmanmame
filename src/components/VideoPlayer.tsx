@@ -9,6 +9,36 @@ interface VideoPlayerProps {
   className?: string;
 }
 
+// Helpers to detect playable types and embed providers
+const isFileSource = (url: string) => /\.(mp4|webm|ogg)(\?.*)?$/i.test(url);
+
+const getYouTubeEmbedUrl = (url: string): string | null => {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('youtu.be')) {
+      const id = u.pathname.replace('/', '');
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+    if (u.hostname.includes('youtube.com')) {
+      const id = u.searchParams.get('v');
+      return id ? `https://www.youtube.com/embed/${id}` : null;
+    }
+  } catch {}
+  return null;
+};
+
+const getVimeoEmbedUrl = (url: string): string | null => {
+  try {
+    const u = new URL(url);
+    if (u.hostname.includes('vimeo.com')) {
+      const segments = u.pathname.split('/').filter(Boolean);
+      const id = segments[0];
+      return id ? `https://player.vimeo.com/video/${id}` : null;
+    }
+  } catch {}
+  return null;
+};
+
 const VideoPlayer = ({ src, title, thumbnail, className = '' }: VideoPlayerProps) => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -186,6 +216,38 @@ const VideoPlayer = ({ src, title, thumbnail, className = '' }: VideoPlayerProps
     document.addEventListener('fullscreenchange', handleFullscreenChange);
     return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
   }, []);
+
+  // If the source is a YouTube or Vimeo link, render an iframe embed
+  const yt = getYouTubeEmbedUrl(src);
+  const vi = getVimeoEmbedUrl(src);
+  if (yt || vi) {
+    const embedSrc = yt || vi || '';
+    return (
+      <div className={`relative bg-black rounded-lg overflow-hidden ${className}`}>
+        <iframe
+          src={embedSrc}
+          title={title || 'Embedded video player'}
+          className="w-full h-full min-h-[300px]"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share; fullscreen"
+          allowFullScreen
+        />
+      </div>
+    );
+  }
+
+  // If the source does not look like a direct video file, show a fallback
+  if (!isFileSource(src)) {
+    return (
+      <div className={`relative bg-black rounded-lg overflow-hidden flex items-center justify-center ${className}`}>
+        <div className="text-center p-6">
+          <p className="text-white mb-4">This video can be watched on its original platform.</p>
+          <Button onClick={() => window.open(src, '_blank')} className="bg-primary text-primary-foreground">
+            Open Video
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div 

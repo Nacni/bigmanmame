@@ -194,16 +194,17 @@ const VideosManager = () => {
       
       console.log('Fetched media data:', data);
       
-      // Filter only video files - include external videos (those without filename)
+      // Filter only video files - include external videos (those with NULL filename)
       const videoFiles = (data || []).filter(item => 
         item.filename?.match(/\.(mp4|avi|mov|wmv|flv|webm)$/i) || 
-        !item.filename // Include all items without filename (external videos)
+        item.filename === null || // Include items with explicit NULL filename
+        item.filename === '' // Include items with empty filename (fallback)
       ).map(item => ({
         ...item,
         video_url: item.url,
         title: item.title || item.filename?.split('.')[0] || 'Untitled Video',
         category: item.category || 'General',
-        is_external: !item.filename // If no filename, it's an external video
+        is_external: item.filename === null || item.filename === '' // Mark as external if filename is NULL or empty
       }));
       
       console.log('Filtered video files:', videoFiles);
@@ -433,7 +434,8 @@ const VideosManager = () => {
         title: externalVideoTitle || 'External Video',
         category: 'External',
         description: '', // Add empty description as default
-        filename: null // Explicitly set filename to null for external videos
+        // Use null to properly mark as external video
+        filename: null
       };
       
       console.log('Inserting data:', insertData);
@@ -448,7 +450,7 @@ const VideosManager = () => {
         .eq('url', externalVideoUrl)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (fetchError) {
         console.error('Fetch error:', fetchError);
