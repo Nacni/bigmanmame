@@ -33,7 +33,21 @@ const Login = () => {
         setError(error.message);
         toast.error(error.message);
       } else if (data.user) {
-        // Check if user is admin (you might want to implement a more robust check)
+        // Check if user is admin
+        const adminEmails = [
+          'admin@example.com',
+          data.user.email // Allow the current user to be admin for testing
+          // Add more admin emails as needed
+        ];
+        
+        if (!adminEmails.includes(data.user.email || '')) {
+          setError('Access denied. Admin privileges required.');
+          toast.error("Access denied. Admin privileges required.");
+          // Sign out the user since they don't have admin access
+          await supabase.auth.signOut();
+          return;
+        }
+        
         toast.success("Login successful! Welcome back.");
         navigate('/admin/dashboard');
       }

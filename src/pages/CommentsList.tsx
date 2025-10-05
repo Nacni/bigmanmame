@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Check, X, Trash2, Filter, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Check, X, Trash2, Filter, ChevronDown, Search, Calendar, User, Mail, MessageSquare } from 'lucide-react';
 import { supabase, Comment } from '@/lib/supabase';
 import { useNavigate } from 'react-router-dom';
 import { toast } from '@/components/ui/sonner';
@@ -14,6 +14,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Input } from '@/components/ui/input';
 
 // Define a simplified article type for the dropdown
 interface SimpleArticle {
@@ -27,6 +36,9 @@ const CommentsList = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [filter, setFilter] = useState<'all' | 'pending' | 'approved'>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [sortBy, setSortBy] = useState<'created_at' | 'name'>('created_at');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -36,28 +48,38 @@ const CommentsList = () => {
 
   const fetchComments = async () => {
     try {
-      let query = supabase
+      // Fetch comments for both articles and videos
+      const { data: articleComments, error: articleError } = await supabase
         .from('comments')
         .select('*, articles(title)')
+        .not('article_id', 'is', null)
         .order('created_at', { ascending: false });
 
-      if (filter === 'pending') {
-        query = query.eq('approved', false);
-      } else if (filter === 'approved') {
-        query = query.eq('approved', true);
-      }
+      if (articleError) throw articleError;
 
-      const { data, error } = await query;
+      const { data: videoComments, error: videoError } = await supabase
+        .from('comments')
+        .select('*, media(title, filename)')
+        .not('media_id', 'is', null)
+        .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      
-      // Map comments with article titles
-      const commentsWithTitles = data?.map(comment => ({
-        ...comment,
-        article_title: comment.articles?.title || 'Unknown Article'
-      })) || [];
+      if (videoError) throw videoError;
 
-      setComments(commentsWithTitles);
+      // Combine and map comments
+      const allComments = [
+        ...(articleComments?.map(comment => ({
+          ...comment,
+          article_title: comment.articles?.title || 'Unknown Article',
+          comment_type: 'article'
+        })) || []),
+        ...(videoComments?.map(comment => ({
+          ...comment,
+          article_title: comment.media?.title || comment.media?.filename || 'Unknown Video',
+          comment_type: 'video'
+        })) || [])
+      ];
+
+      setComments(allComments);
     } catch (error) {
       console.error('Error fetching comments:', error);
       setError('Failed to load comments');
@@ -130,7 +152,7 @@ const CommentsList = () => {
   };
 
   const handleDelete = async (commentId: string) => {
-    if (!window.confirm('Are you sure you want to delete this comment?')) return;
+    if (!window.confirm('Are you sure you want to delete this comment? This action cannot be undone.')) return;
 
     try {
       const { error } = await supabase
@@ -158,12 +180,36 @@ const CommentsList = () => {
     });
   };
 
-  const filteredComments = comments.filter(comment => {
-    if (filter === 'all') return true;
-    if (filter === 'pending') return !comment.approved;
-    if (filter === 'approved') return comment.approved;
-    return true;
-  });
+  // Filter and sort comments
+  const processedComments = comments
+    .filter(comment => {
+      // Apply status filter
+      if (filter === 'pending') return !comment.approved;
+      if (filter === 'approved') return comment.approved;
+      return true;
+    })
+    .filter(comment => {
+      // Apply search filter
+      if (!searchTerm) return true;
+      const searchLower = searchTerm.toLowerCase();
+      return (
+        comment.name.toLowerCase().includes(searchLower) ||
+        comment.email.toLowerCase().includes(searchLower) ||
+        comment.content.toLowerCase().includes(searchLower) ||
+        (comment.article_title && comment.article_title.toLowerCase().includes(searchLower))
+      );
+    })
+    .sort((a, b) => {
+      if (sortBy === 'created_at') {
+        return sortOrder === 'asc' 
+          ? new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+          : new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      } else {
+        return sortOrder === 'asc'
+          ? a.name.localeCompare(b.name)
+          : b.name.localeCompare(a.name);
+      }
+    });
 
   if (loading) {
     return (
@@ -196,14 +242,13 @@ const CommentsList = () => {
           </Button>
           <div>
             <h1 className="text-2xl font-bold text-foreground">Comments Management</h1>
-            <p className="text-muted-foreground">Manage all comments on your articles</p>
+            <p className="text-muted-foreground">Manage all comments on your articles and videos</p>
           </div>
         </div>
-
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-10">
+              <Button variant="outline" className="text-base">
                 <Filter className="mr-2 h-4 w-4" />
                 Filter
                 <ChevronDown className="ml-2 h-4 w-4" />
@@ -214,9 +259,11 @@ const CommentsList = () => {
                 All Comments
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setFilter('pending')}>
-                Pending Approval
+                <X className="mr-2 h-4 w-4 text-red-500" />
+                Pending
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => setFilter('approved')}>
+                <Check className="mr-2 h-4 w-4 text-green-500" />
                 Approved
               </DropdownMenuItem>
             </DropdownMenuContent>
@@ -224,8 +271,45 @@ const CommentsList = () => {
         </div>
       </div>
 
+      {/* Search and Filters */}
+      <Card className="bg-card border-border">
+        <CardContent className="p-4">
+          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex-1">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+                <Input
+                  placeholder="Search comments..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10 h-10 bg-input border-border"
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              <Select value={sortBy} onValueChange={(value: 'created_at' | 'name') => setSortBy(value)}>
+                <SelectTrigger className="w-32 h-10 bg-input border-border">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="created_at">Date</SelectItem>
+                  <SelectItem value="name">Name</SelectItem>
+                </SelectContent>
+              </Select>
+              <Button
+                variant="outline"
+                onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}
+                className="h-10"
+              >
+                {sortOrder === 'asc' ? '↑' : '↓'}
+              </Button>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <Card className="bg-card border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -233,123 +317,138 @@ const CommentsList = () => {
                 <p className="text-sm text-muted-foreground">Total Comments</p>
                 <p className="text-2xl font-bold text-foreground">{comments.length}</p>
               </div>
-              <Badge variant="secondary" className="text-lg">All</Badge>
+              <div className="bg-primary/10 p-3 rounded-full">
+                <MessageSquare className="h-6 w-6 text-primary" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        
         <Card className="bg-card border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm text-muted-foreground">Pending Approval</p>
-                <p className="text-2xl font-bold text-foreground">
+                <p className="text-sm text-muted-foreground">Pending</p>
+                <p className="text-2xl font-bold text-red-500">
                   {comments.filter(c => !c.approved).length}
                 </p>
               </div>
-              <Badge variant="secondary" className="text-lg bg-yellow-500 text-yellow-foreground">Pending</Badge>
+              <div className="bg-red-500/10 p-3 rounded-full">
+                <X className="h-6 w-6 text-red-500" />
+              </div>
             </div>
           </CardContent>
         </Card>
-        
         <Card className="bg-card border-border">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Approved</p>
-                <p className="text-2xl font-bold text-foreground">
+                <p className="text-2xl font-bold text-green-500">
                   {comments.filter(c => c.approved).length}
                 </p>
               </div>
-              <Badge variant="default" className="text-lg">Approved</Badge>
+              <div className="bg-green-500/10 p-3 rounded-full">
+                <Check className="h-6 w-6 text-green-500" />
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Comments List */}
-      {filteredComments.length === 0 ? (
+      {/* Comments Table */}
+      {processedComments.length === 0 ? (
         <Card className="bg-card border-border">
           <CardContent className="py-12 text-center">
-            <div className="mx-auto h-12 w-12 text-muted-foreground mb-4">
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
-              </svg>
-            </div>
+            <MessageSquare className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-medium text-foreground mb-2">
-              {filter === 'all' ? 'No comments yet' : 
-               filter === 'pending' ? 'No pending comments' : 
-               'No approved comments'}
+              {searchTerm || filter !== 'all' ? 'No comments found' : 'No comments yet'}
             </h3>
             <p className="text-muted-foreground">
-              {filter === 'all' ? 'There are no comments on any articles.' : 
-               filter === 'pending' ? 'All comments are approved.' : 
-               'No comments have been approved yet.'}
+              {searchTerm || filter !== 'all' 
+                ? 'Try adjusting your search or filter criteria.'
+                : 'Comments from your articles and videos will appear here.'}
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="space-y-4">
-          {filteredComments.map((comment) => (
-            <Card key={comment.id} className="bg-card border-border">
-              <CardHeader className="pb-3">
-                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
-                  <div>
-                    <h3 className="font-medium text-foreground">{comment.name}</h3>
-                    <p className="text-sm text-muted-foreground">{comment.email}</p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Badge 
-                      variant={comment.approved ? "default" : "secondary"}
-                      className={comment.approved ? "bg-green-500" : "bg-yellow-500 text-yellow-foreground"}
-                    >
-                      {comment.approved ? "Approved" : "Pending"}
-                    </Badge>
-                    <span className="text-sm text-muted-foreground">
-                      {formatDate(comment.created_at)}
-                    </span>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="mb-4">
-                  <p className="text-sm text-muted-foreground mb-1">On article: {comment.article_title}</p>
-                  <p className="text-foreground">{comment.content}</p>
-                </div>
-                <div className="flex items-center justify-end space-x-2">
-                  {!comment.approved ? (
-                    <Button
-                      variant="default"
-                      size="sm"
-                      onClick={() => handleApprove(comment.id)}
-                      className="bg-green-500 hover:bg-green-600"
-                    >
-                      <Check className="h-4 w-4 mr-1" />
-                      Approve
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={() => handleReject(comment.id)}
-                    >
-                      <X className="h-4 w-4 mr-1" />
-                      Reject
-                    </Button>
-                  )}
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => handleDelete(comment.id)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Delete
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card className="bg-card border-border">
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-1/4">Author</TableHead>
+                  <TableHead className="w-1/4">Content</TableHead>
+                  <TableHead className="w-1/4">Related To</TableHead>
+                  <TableHead className="w-1/6">Date</TableHead>
+                  <TableHead className="w-1/6 text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {processedComments.map((comment) => (
+                  <TableRow key={comment.id} className="border-border">
+                    <TableCell>
+                      <div className="font-medium">{comment.name}</div>
+                      <div className="text-sm text-muted-foreground flex items-center mt-1">
+                        <Mail className="h-3 w-3 mr-1" />
+                        {comment.email}
+                      </div>
+                      <Badge variant={comment.approved ? 'default' : 'secondary'} className="mt-2">
+                        {comment.approved ? 'Approved' : 'Pending'}
+                      </Badge>
+                      <Badge variant="outline" className="mt-1 mr-1">
+                        {comment.comment_type === 'article' ? 'Article' : 'Video'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-foreground line-clamp-3">
+                        {comment.content}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium text-sm">{comment.article_title}</div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="text-sm text-muted-foreground">
+                        {formatDate(comment.created_at)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end space-x-2">
+                        {!comment.approved ? (
+                          <Button
+                            onClick={() => handleApprove(comment.id)}
+                            variant="outline"
+                            size="sm"
+                            className="text-green-600 hover:text-green-700 hover:bg-green-50 border-green-200 h-8"
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                        ) : (
+                          <Button
+                            onClick={() => handleReject(comment.id)}
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 border-red-200 h-8"
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                        <Button
+                          onClick={() => handleDelete(comment.id)}
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:text-destructive-foreground h-8"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

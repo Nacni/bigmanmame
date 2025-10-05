@@ -20,7 +20,14 @@ import {
   AlignCenter,
   AlignRight,
   Strikethrough,
-  Underline
+  Underline,
+  Palette,
+  Type,
+  Video,
+  FileText,
+  Save,
+  Undo,
+  Redo
 } from 'lucide-react';
 
 interface RichTextEditorProps {
@@ -33,6 +40,8 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const [isPreview, setIsPreview] = useState(false);
   const [selection, setSelection] = useState({ start: 0, end: 0 });
+  const [history, setHistory] = useState<string[]>([value || '']);
+  const [historyIndex, setHistoryIndex] = useState(0);
 
   // Track cursor position
   useEffect(() => {
@@ -54,6 +63,32 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
       };
     }
   }, []);
+
+  // Save to history
+  const saveToHistory = (newValue: string) => {
+    const newHistory = history.slice(0, historyIndex + 1);
+    newHistory.push(newValue);
+    setHistory(newHistory);
+    setHistoryIndex(newHistory.length - 1);
+  };
+
+  // Undo functionality
+  const handleUndo = () => {
+    if (historyIndex > 0) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      onChange(history[newIndex]);
+    }
+  };
+
+  // Redo functionality
+  const handleRedo = () => {
+    if (historyIndex < history.length - 1) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      onChange(history[newIndex]);
+    }
+  };
 
   const insertMarkdown = (markdown: string, wrap: boolean = false, placeholderText: string = '', isBlock: boolean = false) => {
     const textarea = textareaRef.current;
@@ -82,6 +117,7 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
 
     const newValue = value.substring(0, start) + newText + value.substring(end);
     onChange(newValue);
+    saveToHistory(newValue);
 
     // Set cursor position after the inserted text
     setTimeout(() => {
@@ -110,8 +146,13 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
   const insertVideo = () => {
     const videoUrl = prompt('Enter video URL (YouTube, Vimeo, etc.):');
     if (videoUrl) {
-      insertMarkdown(`[Video](${videoUrl})`, false, '', true);
+      insertMarkdown(`@[video](${videoUrl})`, false, '', true);
     }
+  };
+
+  const insertCodeBlock = () => {
+    const language = prompt('Enter language (optional):', 'javascript') || '';
+    insertMarkdown(`\`\`\`${language}\n\n\`\`\``, false, 'Enter your code here', true);
   };
 
   const formatContent = (content: string) => {
@@ -123,11 +164,12 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
       .replace(/\*(.*?)\*/g, '<em class="italic text-foreground">$1</em>') // Italic
       .replace(/~~(.*?)~~/g, '<del class="line-through text-foreground">$1</del>') // Strikethrough
       .replace(/__(.*?)__/g, '<u class="underline text-foreground">$1</u>') // Underline
-      .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto my-4 rounded-lg border border-border" />') // Images
+      .replace(/!\[(.*?)\]\((.*?)\)/g, '<img src="$2" alt="$1" class="max-w-full h-auto my-4 rounded-lg border border-border shadow-sm" />') // Images
+      .replace(/@\[(.*?)\]\((.*?)\)/g, '<div class="my-4 rounded-lg overflow-hidden border border-border"><iframe src="$2" class="w-full aspect-video" frameborder="0" allowfullscreen></iframe></div>') // Embedded videos
       .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-primary hover:underline" target="_blank">$1</a>') // Links
-      .replace(/^> (.*$)/gm, '<blockquote class="border-l-4 border-primary pl-4 my-4 text-muted-foreground">$1</blockquote>') // Blockquotes
+      .replace(/^> (.*$)/gm, '<blockquote class="border-l-4 border-primary pl-4 my-4 text-muted-foreground bg-muted/50 py-2 px-4 rounded-r-lg">$1</blockquote>') // Blockquotes
       .replace(/`(.*?)`/g, '<code class="bg-muted px-1.5 py-0.5 rounded text-sm font-mono">$1</code>') // Inline code
-      .replace(/^```([\s\S]*?)```/gm, '<pre class="bg-muted p-4 rounded-lg my-4 overflow-x-auto"><code class="text-sm">$1</code></pre>') // Code blocks
+      .replace(/^```([\s\S]*?)```/gm, '<pre class="bg-muted p-4 rounded-lg my-4 overflow-x-auto"><code class="text-sm font-mono">$1</code></pre>') // Code blocks
       .replace(/^### (.*$)/gm, '<h3 class="text-xl font-bold mt-6 mb-3 text-foreground">$1</h3>') // H3
       .replace(/^## (.*$)/gm, '<h2 class="text-2xl font-bold mt-8 mb-4 text-foreground">$1</h2>') // H2
       .replace(/^# (.*$)/gm, '<h1 class="text-3xl font-bold mt-10 mb-5 text-foreground">$1</h1>') // H1
@@ -143,10 +185,10 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
     if (formattedContent.includes('\n\n')) {
       formattedContent = formattedContent
         .split('\n\n')
-        .map(paragraph => `<p class="mb-4 text-foreground">${paragraph.replace(/\n/g, '<br />')}</p>`)
+        .map(paragraph => `<p class="mb-4 text-foreground leading-relaxed">${paragraph.replace(/\n/g, '<br />')}</p>`)
         .join('');
     } else {
-      formattedContent = `<p class="mb-4 text-foreground">${formattedContent.replace(/\n/g, '<br />')}</p>`;
+      formattedContent = `<p class="mb-4 text-foreground leading-relaxed">${formattedContent.replace(/\n/g, '<br />')}</p>`;
     }
 
     return formattedContent;
@@ -156,6 +198,30 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
     <div className="border border-border rounded-lg bg-card">
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-1 p-3 border-b border-border bg-muted rounded-t-lg">
+        {/* Undo/Redo */}
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleUndo}
+          title="Undo"
+          disabled={historyIndex <= 0}
+        >
+          <Undo className="h-4 w-4" />
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={handleRedo}
+          title="Redo"
+          disabled={historyIndex >= history.length - 1}
+        >
+          <Redo className="h-4 w-4" />
+        </Button>
+        <div className="border-l border-border h-6 mx-1"></div>
+        
+        {/* Text Formatting */}
         <Button
           type="button"
           variant="ghost"
@@ -193,6 +259,8 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
           <Strikethrough className="h-4 w-4" />
         </Button>
         <div className="border-l border-border h-6 mx-1"></div>
+        
+        {/* Headings */}
         <Button
           type="button"
           variant="ghost"
@@ -221,6 +289,8 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
           <Heading3 className="h-4 w-4" />
         </Button>
         <div className="border-l border-border h-6 mx-1"></div>
+        
+        {/* Lists */}
         <Button
           type="button"
           variant="ghost"
@@ -249,6 +319,8 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
           <Quote className="h-4 w-4" />
         </Button>
         <div className="border-l border-border h-6 mx-1"></div>
+        
+        {/* Media */}
         <Button
           type="button"
           variant="ghost"
@@ -274,11 +346,20 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
           onClick={insertVideo}
           title="Insert Video"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-4 w-4">
-            <polygon points="23 7 16 12 23 17 23 7"></polygon>
-            <rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect>
-          </svg>
+          <Video className="h-4 w-4" />
         </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={insertCodeBlock}
+          title="Insert Code Block"
+        >
+          <Code className="h-4 w-4" />
+        </Button>
+        <div className="border-l border-border h-6 mx-1"></div>
+        
+        {/* Horizontal Rule */}
         <Button
           type="button"
           variant="ghost"
@@ -289,6 +370,8 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
           <Minus className="h-4 w-4" />
         </Button>
         <div className="border-l border-border h-6 mx-1"></div>
+        
+        {/* Preview Toggle */}
         <Button
           type="button"
           variant={isPreview ? "default" : "ghost"}
@@ -321,7 +404,14 @@ const RichTextEditor = ({ value, onChange, placeholder }: RichTextEditorProps) =
           <Textarea
             ref={textareaRef}
             value={value || ''}
-            onChange={(e) => onChange(e.target.value)}
+            onChange={(e) => {
+              onChange(e.target.value);
+              // Update history on change with debounce
+              clearTimeout((window as any).editorHistoryTimeout);
+              (window as any).editorHistoryTimeout = setTimeout(() => {
+                saveToHistory(e.target.value);
+              }, 1000);
+            }}
             placeholder={placeholder || "Write your content here..."}
             className="min-h-[400px] resize-none bg-input border-0 p-4 focus-visible:ring-0 rounded-b-lg text-foreground text-base font-sans"
           />

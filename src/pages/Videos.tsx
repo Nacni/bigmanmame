@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabase';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { toast } from '@/components/ui/sonner';
 import petroleumThumb from '@/assets/video-petroleum-thumb.jpg';
 import southwestThumb from '@/assets/video-southwest-thumb.jpg';
 import electionThumb from '@/assets/video-election-thumb.jpg';
@@ -21,6 +22,8 @@ const Videos = () => {
   const [comments, setComments] = useState<{[key: string]: any[]}>({});
   const [newComment, setNewComment] = useState<{[key: string]: {name: string, email: string, content: string}}>({});
   const [submitting, setSubmitting] = useState<{[key: string]: boolean}>({});
+  // Add state to track which videos have their comments visible
+  const [visibleComments, setVisibleComments] = useState<{[key: string]: boolean}>({});
 
   // Featured videos (these will remain as hardcoded examples)
   const featuredVideos = [
@@ -89,16 +92,19 @@ const Videos = () => {
       const initialComments: {[key: string]: any[]} = {};
       const initialNewComment: {[key: string]: {name: string, email: string, content: string}} = {};
       const initialSubmitting: {[key: string]: boolean} = {};
+      const initialVisibleComments: {[key: string]: boolean} = {};
       
       [...featuredVideos, ...videoFiles].forEach(video => {
         initialComments[video.id] = [];
         initialNewComment[video.id] = { name: '', email: '', content: '' };
         initialSubmitting[video.id] = false;
+        initialVisibleComments[video.id] = false; // Initially hide comments
       });
       
       setComments(initialComments);
       setNewComment(initialNewComment);
       setSubmitting(initialSubmitting);
+      setVisibleComments(initialVisibleComments); // Set initial visibility state
       
       // Fetch comments for all videos
       [...featuredVideos, ...videoFiles].forEach(video => {
@@ -126,8 +132,13 @@ const Videos = () => {
         ...prev,
         [videoId]: data || []
       }));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error fetching comments for video:', videoId, error);
+      // Set empty array even on error to prevent infinite loading
+      setComments(prev => ({
+        ...prev,
+        [videoId]: []
+      }));
     }
   };
 
@@ -149,14 +160,14 @@ const Videos = () => {
     const commentData = newComment[videoId];
     
     if (!commentData.name || !commentData.email || !commentData.content) {
-      alert("Please fill in all fields");
+      toast.error("Please fill in all fields");
       return;
     }
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(commentData.email)) {
-      alert("Please enter a valid email address");
+      toast.error("Please enter a valid email address");
       return;
     }
 
@@ -183,7 +194,7 @@ const Videos = () => {
       // Add new comment to the list
       setComments(prev => ({
         ...prev,
-        [videoId]: [data, ...prev[videoId]]
+        [videoId]: [data, ...(prev[videoId] || [])]
       }));
       
       // Reset form for this video
@@ -192,10 +203,11 @@ const Videos = () => {
         [videoId]: { name: '', email: '', content: '' }
       }));
       
-      alert("Comment submitted successfully!");
-    } catch (error) {
+      // Show success message with toast
+      toast.success("Comment submitted successfully!");
+    } catch (error: any) {
       console.error('Error submitting comment:', error);
-      alert("Failed to submit comment. Please try again.");
+      toast.error(`Failed to submit comment: ${error.message || 'Please try again.'}`);
     } finally {
       setSubmitting(prev => ({ ...prev, [videoId]: false }));
     }
@@ -213,6 +225,15 @@ const Videos = () => {
 
   const VideoCard = ({ video }: { video: any }) => {
     const videoComments = comments[video.id] || [];
+    const isCommentsVisible = visibleComments[video.id] || false;
+    
+    // Toggle comment visibility
+    const toggleComments = (videoId: string) => {
+      setVisibleComments(prev => ({
+        ...prev,
+        [videoId]: !prev[videoId]
+      }));
+    };
     
     return (
       <Card className="bg-card hover:bg-card/80 border-border hover:border-primary/50 transition-all duration-300 hover:shadow-neon group overflow-hidden">
@@ -267,80 +288,89 @@ const Videos = () => {
             {video.is_external ? 'Watch on Platform' : 'Play Video'}
           </Button>
           
-          {/* Comments Section */}
+          {/* Comment Toggle Button */}
           <div className="border-t border-border pt-4 mt-4">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-lg font-semibold text-foreground">Comments ({videoComments.length})</h3>
-              <MessageSquare className="h-5 w-5 text-muted-foreground" />
-            </div>
+            <Button 
+              onClick={() => toggleComments(video.id)}
+              variant="ghost"
+              className="w-full justify-start text-left hover:bg-muted/50"
+            >
+              <MessageSquare className="h-5 w-5 mr-2 text-muted-foreground" />
+              {isCommentsVisible ? 'Hide Comments' : `Comment (${videoComments.length})`}
+            </Button>
             
-            {/* Comment Form */}
-            <form onSubmit={(e) => handleCommentSubmit(video.id, e)} className="space-y-3 mb-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label htmlFor={`name-${video.id}`} className="text-xs text-foreground">Name</Label>
-                  <Input
-                    id={`name-${video.id}`}
-                    value={newComment[video.id]?.name || ''}
-                    onChange={(e) => handleCommentChange(video.id, 'name', e.target.value)}
-                    placeholder="Your name"
-                    className="bg-input border-border text-foreground text-sm h-8"
-                    required
-                  />
-                </div>
-                <div className="space-y-1">
-                  <Label htmlFor={`email-${video.id}`} className="text-xs text-foreground">Email</Label>
-                  <Input
-                    id={`email-${video.id}`}
-                    type="email"
-                    value={newComment[video.id]?.email || ''}
-                    onChange={(e) => handleCommentChange(video.id, 'email', e.target.value)}
-                    placeholder="Your email"
-                    className="bg-input border-border text-foreground text-sm h-8"
-                    required
-                  />
-                </div>
-              </div>
-              <div className="space-y-1">
-                <Label htmlFor={`comment-${video.id}`} className="text-xs text-foreground">Comment</Label>
-                <Textarea
-                  id={`comment-${video.id}`}
-                  value={newComment[video.id]?.content || ''}
-                  onChange={(e) => handleCommentChange(video.id, 'content', e.target.value)}
-                  placeholder="Write your comment..."
-                  className="bg-input border-border text-foreground text-sm"
-                  rows={2}
-                  required
-                />
-              </div>
-              <Button 
-                type="submit" 
-                disabled={submitting[video.id]}
-                size="sm"
-                className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs h-8"
-              >
-                {submitting[video.id] ? 'Submitting...' : 'Post Comment'}
-              </Button>
-            </form>
-            
-            {/* Comments List */}
-            <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-              {videoComments.length === 0 ? (
-                <p className="text-muted-foreground text-sm">No comments yet. Be the first to comment!</p>
-              ) : (
-                videoComments.map((comment: any) => (
-                  <div key={comment.id} className="bg-muted/30 rounded-lg p-3">
-                    <div className="flex justify-between items-start mb-1">
-                      <h4 className="font-medium text-foreground text-sm">{comment.name}</h4>
-                      <span className="text-xs text-muted-foreground">
-                        {new Date(comment.created_at).toLocaleDateString()}
-                      </span>
+            {/* Comments Section - Hidden by default, shown when toggled */}
+            {isCommentsVisible && (
+              <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                {/* Comment Form */}
+                <form onSubmit={(e) => handleCommentSubmit(video.id, e)} className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                    <div className="space-y-1">
+                      <Label htmlFor={`name-${video.id}`} className="text-xs text-foreground">Name</Label>
+                      <Input
+                        id={`name-${video.id}`}
+                        value={newComment[video.id]?.name || ''}
+                        onChange={(e) => handleCommentChange(video.id, 'name', e.target.value)}
+                        placeholder="Your name"
+                        className="bg-input border-border text-foreground text-sm h-8"
+                        required
+                      />
                     </div>
-                    <p className="text-muted-foreground text-sm">{comment.content}</p>
+                    <div className="space-y-1">
+                      <Label htmlFor={`email-${video.id}`} className="text-xs text-foreground">Email</Label>
+                      <Input
+                        id={`email-${video.id}`}
+                        type="email"
+                        value={newComment[video.id]?.email || ''}
+                        onChange={(e) => handleCommentChange(video.id, 'email', e.target.value)}
+                        placeholder="Your email"
+                        className="bg-input border-border text-foreground text-sm h-8"
+                        required
+                      />
+                    </div>
                   </div>
-                ))
-              )}
-            </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={`comment-${video.id}`} className="text-xs text-foreground">Comment</Label>
+                    <Textarea
+                      id={`comment-${video.id}`}
+                      value={newComment[video.id]?.content || ''}
+                      onChange={(e) => handleCommentChange(video.id, 'content', e.target.value)}
+                      placeholder="Write your comment..."
+                      className="bg-input border-border text-foreground text-sm"
+                      rows={3}
+                      required
+                    />
+                  </div>
+                  <Button 
+                    type="submit" 
+                    disabled={submitting[video.id]}
+                    size="sm"
+                    className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs h-8"
+                  >
+                    {submitting[video.id] ? 'Submitting...' : 'Post Comment'}
+                  </Button>
+                </form>
+                
+                {/* Comments List */}
+                <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                  {videoComments.length === 0 ? (
+                    <p className="text-muted-foreground text-sm">No comments yet. Be the first to comment!</p>
+                  ) : (
+                    videoComments.map((comment: any) => (
+                      <div key={comment.id} className="bg-muted/30 rounded-lg p-3">
+                        <div className="flex justify-between items-start mb-1">
+                          <h4 className="font-medium text-foreground text-sm">{comment.name}</h4>
+                          <span className="text-xs text-muted-foreground">
+                            {new Date(comment.created_at).toLocaleDateString()}
+                          </span>
+                        </div>
+                        <p className="text-muted-foreground text-sm">{comment.content}</p>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

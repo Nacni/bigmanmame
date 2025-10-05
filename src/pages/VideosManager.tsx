@@ -21,10 +21,12 @@ import {
   Eye,
   Link as LinkIcon,
   GripVertical,
-  Plus
+  Plus,
+  RefreshCw
 } from 'lucide-react';
 import { supabase, Media } from '@/lib/supabase';
 import { toast } from '@/components/ui/sonner';
+import { refreshSchemaCache, insertWithSchemaHandling, updateWithSchemaHandling, deleteWithSchemaHandling } from '@/lib/supabase-utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -63,6 +65,9 @@ interface Video extends Media {
   video_url: string;
   is_external?: boolean;
   external_url?: string;
+  // Add new fields for enhanced video management
+  thumbnail?: string;
+  tags?: string[];
 }
 
 const VideosManager = () => {
@@ -78,10 +83,31 @@ const VideosManager = () => {
   const [externalVideoUrl, setExternalVideoUrl] = useState('');
   const [externalVideoTitle, setExternalVideoTitle] = useState('');
   const [draggedVideo, setDraggedVideo] = useState<Video | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  // Add state for thumbnail upload
+  const [thumbnailUploading, setThumbnailUploading] = useState(false);
 
   useEffect(() => {
     fetchVideos();
   }, []);
+
+  // Function to refresh Supabase schema cache
+  const handleRefreshSchemaCache = async () => {
+    setRefreshing(true);
+    try {
+      const success = await refreshSchemaCache();
+      if (success) {
+        toast.success("Schema cache refreshed successfully");
+      } else {
+        toast.error("Failed to refresh schema cache");
+      }
+    } catch (error) {
+      console.error('Error refreshing schema cache:', error);
+      toast.error("Error refreshing schema cache");
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const fetchVideos = async () => {
     try {
@@ -142,24 +168,13 @@ const VideosManager = () => {
         const filePath = `uploads/${fileName}`;
 
         // Upload to Supabase Storage
-        let uploadResult = await supabase.storage
+        const { error: uploadError } = await supabase.storage
           .from('media')
           .upload(filePath, file);
 
-        // If it's a schema cache error, try to refresh and retry
-        if (uploadResult.error && uploadResult.error.message.includes('schema cache')) {
-          toast.error("Schema cache issue detected during upload. Trying to refresh...");
-          // Try to refresh the schema cache
-          await supabase.from('media').select('id').limit(1);
-          // Retry the upload
-          uploadResult = await supabase.storage
-            .from('media')
-            .upload(filePath, file);
-        }
-
-        if (uploadResult.error) {
-          console.error('Upload error:', uploadResult.error);
-          toast.error(`Failed to upload ${file.name}: ${uploadResult.error.message}`);
+        if (uploadError) {
+          console.error('Upload error:', uploadError);
+          toast.error(`Failed to upload ${file.name}: ${uploadError.message}`);
           continue; // Continue with other files
         }
 
@@ -168,53 +183,46 @@ const VideosManager = () => {
           .from('media')
           .getPublicUrl(filePath);
 
-        // Save to database - without category field to avoid schema cache issue
-        let dbResult = await supabase
-          .from('media')
-          .insert([{
-            filename: file.name,
+        // Try the insert operation with enhanced error handling
+        try {
+          const insertResult = await insertWithSchemaHandling('media', {
             url: publicUrl,
-            alt_text: file.name.split('.')[0],
+            filename: file.name,
             title: file.name.split('.')[0]
-            // Removed category field temporarily
-          }])
-          .select()
-          .single();
+          });
 
-        // If it's a schema cache error, try to refresh and retry
-        if (dbResult.error && dbResult.error.message.includes('schema cache')) {
-          toast.error("Schema cache issue detected during database insert. Trying to refresh...");
-          // Try to refresh the schema cache
-          await supabase.from('media').select('id').limit(1);
-          // Retry the insert
-          dbResult = await supabase
+          // Fetch the inserted record
+          const { data: fetchData, error: fetchError } = await supabase
             .from('media')
-            .insert([{
-              filename: file.name,
-              url: publicUrl,
-              alt_text: file.name.split('.')[0],
-              title: file.name.split('.')[0]
-            }])
-            .select()
+            .select('*')
+            .eq('url', publicUrl)
+            .order('created_at', { ascending: false })
+            .limit(1)
             .single();
-        }
 
-        if (dbResult.error) {
-          console.error('Database error:', dbResult.error);
-          toast.error(`Failed to save ${file.name} to database: ${dbResult.error.message}`);
+          if (fetchError) {
+            console.error('Fetch error:', fetchError);
+            toast.error(`File uploaded but could not save to database: ${fetchError.message}`);
+            // Try to delete the uploaded file since we couldn't save to DB
+            await supabase.storage.from('media').remove([filePath]);
+            continue;
+          }
+
+          if (fetchData) {
+            uploadedVideos.push({
+              ...fetchData,
+              video_url: publicUrl,
+              title: fetchData.title || file.name.split('.')[0],
+              category: fetchData.category || 'General',
+              is_external: false
+            });
+          }
+        } catch (insertError: any) {
+          console.error('Database insert error:', insertError);
+          toast.error(`Failed to save ${file.name} to database: ${insertError.message}`);
           // Try to delete the uploaded file since we couldn't save to DB
           await supabase.storage.from('media').remove([filePath]);
           continue;
-        }
-
-        if (dbResult.data) {
-          uploadedVideos.push({
-            ...dbResult.data,
-            video_url: publicUrl,
-            title: file.name.split('.')[0],
-            category: dbResult.data.category || 'General', // Use existing category or default
-            is_external: false
-          });
         }
       }
 
@@ -254,56 +262,39 @@ const VideosManager = () => {
     }
 
     try {
-      console.log('Adding external video:', { 
-        url: externalVideoUrl, 
-        title: externalVideoTitle || 'External Video',
-        alt_text: externalVideoTitle || 'External Video'
-        // Removed category to avoid schema cache issue
-      });
+      console.log('Adding external video with enhanced approach');
       
-      // Save to database - without category field to avoid schema cache issue
-      let result = await supabase
+      // Try the insert operation with enhanced error handling
+      const insertResult = await insertWithSchemaHandling('media', {
+        url: externalVideoUrl,
+        title: externalVideoTitle || 'External Video',
+        category: 'External',
+        description: '' // Add empty description as default
+      });
+
+      // Fetch the inserted record
+      const { data: fetchData, error: fetchError } = await supabase
         .from('media')
-        .insert([{
-          url: externalVideoUrl,
-          title: externalVideoTitle || 'External Video',
-          alt_text: externalVideoTitle || 'External Video'
-          // Removed category field temporarily
-        }])
-        .select()
+        .select('*')
+        .eq('url', externalVideoUrl)
+        .order('created_at', { ascending: false })
+        .limit(1)
         .single();
 
-      // If it's a schema cache error, try again with a different approach
-      if (result.error && result.error.message.includes('schema cache')) {
-        toast.error("Schema cache issue detected. Trying to refresh...");
-        // Try to refresh the schema cache
-        await supabase.from('media').select('id').limit(1);
-        // Retry the insert
-        result = await supabase
-          .from('media')
-          .insert([{
-            url: externalVideoUrl,
-            title: externalVideoTitle || 'External Video',
-            alt_text: externalVideoTitle || 'External Video'
-          }])
-          .select()
-          .single();
-      }
-
-      if (result.error) {
-        console.error('Database error:', result.error);
-        toast.error(`Database error: ${result.error.message}`);
+      if (fetchError) {
+        console.error('Fetch error:', fetchError);
+        toast.error(`Video added but could not retrieve: ${fetchError.message}`);
         return;
       }
 
-      console.log('Successfully added external video:', result.data);
+      console.log('Successfully added external video:', fetchData);
       
-      if (result.data) {
+      if (fetchData) {
         const newVideo: Video = {
-          ...result.data,
+          ...fetchData,
           video_url: externalVideoUrl,
-          title: externalVideoTitle || 'External Video',
-          category: result.data.category || 'General', // Use existing category or default
+          title: fetchData.title || externalVideoTitle || 'External Video',
+          category: fetchData.category || 'General',
           is_external: true,
           external_url: externalVideoUrl
         };
@@ -342,17 +333,8 @@ const VideosManager = () => {
         }
       }
 
-      // Delete from database
-      const { error: dbError } = await supabase
-        .from('media')
-        .delete()
-        .eq('id', video.id);
-
-      if (dbError) {
-        console.error('Database error:', dbError);
-        toast.error(`Failed to delete video from database: ${dbError.message}`);
-        return;
-      }
+      // Delete from database with enhanced error handling
+      await deleteWithSchemaHandling('media', { id: video.id });
 
       setVideos(prev => prev.filter(item => item.id !== video.id));
       toast.success("Video deleted successfully.");
@@ -376,39 +358,19 @@ const VideosManager = () => {
     if (!editingVideo) return;
 
     try {
-      let result = await supabase
-        .from('media')
-        .update({
-          filename: editingVideo.filename,
-          alt_text: editingVideo.alt_text,
-          title: editingVideo.title,
-          description: editingVideo.description
-          // Removed category to avoid schema cache issue
-        })
-        .eq('id', editingVideo.id);
+      // Use the full schema for update
+      const updateData: any = {
+        title: editingVideo.title,
+        alt_text: editingVideo.alt_text,
+        description: editingVideo.description,
+        category: editingVideo.category || 'General'
+      };
+      
+      // Only include filename if it exists
+      if (editingVideo.filename) updateData.filename = editingVideo.filename;
 
-      // If it's a schema cache error, try again with a different approach
-      if (result.error && result.error.message.includes('schema cache')) {
-        toast.error("Schema cache issue detected. Trying to refresh...");
-        // Try to refresh the schema cache
-        await supabase.from('media').select('id').limit(1);
-        // Retry the update
-        result = await supabase
-          .from('media')
-          .update({
-            filename: editingVideo.filename,
-            alt_text: editingVideo.alt_text,
-            title: editingVideo.title,
-            description: editingVideo.description
-          })
-          .eq('id', editingVideo.id);
-      }
-
-      if (result.error) {
-        console.error('Database error:', result.error);
-        toast.error(`Failed to update video: ${result.error.message}`);
-        return;
-      }
+      // Update with enhanced error handling
+      await updateWithSchemaHandling('media', updateData, { id: editingVideo.id });
 
       setVideos(prev => 
         prev.map(video => 
@@ -476,11 +438,22 @@ const VideosManager = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold text-foreground">Video Management</h1>
-        <p className="text-base text-muted-foreground mt-1">
-          Upload, manage, and organize your video content
-        </p>
+      <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-bold text-foreground">Video Management</h1>
+          <p className="text-base text-muted-foreground mt-1">
+            Upload, manage, and organize your video content
+          </p>
+        </div>
+        <Button 
+          onClick={handleRefreshSchemaCache} 
+          disabled={refreshing}
+          variant="outline"
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+          Refresh Schema
+        </Button>
       </div>
 
       {/* Upload Section */}
@@ -853,6 +826,60 @@ const VideosManager = () => {
                   className="bg-input border-border text-foreground"
                   rows={3}
                 />
+              </div>
+              
+              {/* Thumbnail Upload */}
+              <div className="space-y-2">
+                <Label htmlFor="video-thumbnail" className="text-foreground">Thumbnail</Label>
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="video-thumbnail"
+                    value={editingVideo.thumbnail_url || ''}
+                    onChange={(e) => setEditingVideo({...editingVideo, thumbnail_url: e.target.value})}
+                    placeholder="Enter thumbnail URL or upload below"
+                    className="bg-input border-border text-foreground flex-1"
+                  />
+                  <input
+                    type="file"
+                    id="thumbnail-upload"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      if (e.target.files && e.target.files[0] && editingVideo) {
+                        const thumbnailUrl = await handleThumbnailUpload(e.target.files[0], editingVideo.id);
+                        if (thumbnailUrl) {
+                          setEditingVideo({...editingVideo, thumbnail_url: thumbnailUrl});
+                          toast.success("Thumbnail uploaded successfully.");
+                        }
+                      }
+                    }}
+                    className="hidden"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => document.getElementById('thumbnail-upload')?.click()}
+                    disabled={thumbnailUploading}
+                    className="h-10"
+                  >
+                    {thumbnailUploading ? (
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-primary mr-2"></div>
+                        Uploading...
+                      </div>
+                    ) : (
+                      'Upload'
+                    )}
+                  </Button>
+                </div>
+                {editingVideo.thumbnail_url && (
+                  <div className="mt-2">
+                    <img
+                      src={editingVideo.thumbnail_url}
+                      alt="Thumbnail preview"
+                      className="w-24 h-24 object-cover rounded border border-border"
+                    />
+                  </div>
+                )}
               </div>
               
               <div className="flex justify-end space-x-2 pt-2">

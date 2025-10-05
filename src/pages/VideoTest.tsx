@@ -51,6 +51,38 @@ const VideoTest = () => {
     }
   };
 
+  const testSchema = async () => {
+    try {
+      addLog('Testing database schema...');
+      setResult('Testing database schema...');
+      
+      // Get table info
+      const { data, error } = await supabase
+        .from('media')
+        .select('*')
+        .limit(1);
+        
+      if (error) {
+        addLog(`Schema test failed: ${error.message}`);
+        setResult(`Schema test failed: ${error.message}`);
+        return;
+      }
+      
+      if (data && data.length > 0) {
+        const columns = Object.keys(data[0]);
+        addLog(`Table columns: ${columns.join(', ')}`);
+        setResult(`Table columns: ${columns.join(', ')}`);
+        console.log('Table data sample:', data[0]);
+      } else {
+        addLog('Table is empty or inaccessible');
+        setResult('Table is empty or inaccessible');
+      }
+    } catch (error: any) {
+      addLog(`Schema test exception: ${error.message}`);
+      setResult(`Schema test exception: ${error.message}`);
+    }
+  };
+
   const testInsert = async () => {
     if (!authChecked || !user) {
       setResult('Please check authentication first');
@@ -61,16 +93,15 @@ const VideoTest = () => {
       addLog('Testing video insert...');
       setResult('Testing video insert...');
       
+      // Use minimal fields to avoid schema issues
       const videoData = {
         url: testUrl,
-        title: testTitle,
-        alt_text: testTitle
-        // Removed category to avoid schema cache issue
+        title: testTitle
       };
       
-      addLog(`Inserting: ${JSON.stringify(videoData)}`);
+      addLog(`Inserting minimal data: ${JSON.stringify(videoData)}`);
       
-      // Try to insert without category field
+      // Try to insert with minimal fields
       let result = await supabase
         .from('media')
         .insert([videoData])
@@ -80,9 +111,9 @@ const VideoTest = () => {
       // If it's a schema cache error, try again with a different approach
       if (result.error && result.error.message.includes('schema cache')) {
         addLog("Schema cache issue detected. Trying to refresh...");
-        // Try to refresh the schema cache
-        await supabase.from('media').select('id').limit(1);
-        // Retry the insert
+        // Try to refresh the schema cache by getting table info
+        await supabase.from('media').select('id,url,title').limit(1);
+        // Retry the insert with minimal fields
         result = await supabase
           .from('media')
           .insert([videoData])
@@ -111,7 +142,7 @@ const VideoTest = () => {
       if (deleteResult.error && deleteResult.error.message.includes('schema cache')) {
         addLog("Schema cache issue detected during deletion. Trying to refresh...");
         // Try to refresh the schema cache
-        await supabase.from('media').select('id').limit(1);
+        await supabase.from('media').select('id,url,title').limit(1);
         // Retry the deletion
         deleteResult = await supabase
           .from('media')

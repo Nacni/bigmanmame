@@ -42,7 +42,8 @@ const ArticleEditor = () => {
     excerpt: '',
     featured_image: '',
     status: 'draft',
-    tags: []
+    tags: [],
+    author: ''
   });
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -507,6 +508,18 @@ const ArticleEditor = () => {
                     </SelectContent>
                   </Select>
                 </div>
+                
+                {/* Author field */}
+                <div className="space-y-2">
+                  <Label htmlFor="author" className="text-base font-medium">Author</Label>
+                  <Input
+                    id="author"
+                    value={article.author || ''}
+                    onChange={(e) => setArticle(prev => ({ ...prev, author: e.target.value }))}
+                    placeholder="Enter author name"
+                    className="bg-input border-border h-10"
+                  />
+                </div>
               </CardContent>
             </Card>
 
@@ -589,6 +602,12 @@ const ArticleEditor = () => {
                       month: 'long',
                       day: 'numeric'
                     })}
+                    {article.author && (
+                      <>
+                        <span className="mx-2">•</span>
+                        <span>By {article.author}</span>
+                      </>
+                    )}
                   </div>
                   {article.excerpt && (
                     <p className="text-muted-foreground text-lg mb-6">
@@ -635,6 +654,16 @@ const ArticleEditor = () => {
                     <p className="italic text-muted-foreground">No content yet. Start writing your article...</p>
                   )}
                 </div>
+                
+                {article.tags && article.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-2 pt-4 border-t border-border">
+                    {article.tags.map((tag) => (
+                      <span key={tag} className="bg-primary/10 text-primary text-sm px-2 py-1 rounded-full">
+                        #{tag}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

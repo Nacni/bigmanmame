@@ -165,9 +165,7 @@ const VideoDebug = () => {
       // Test RLS by trying to insert with authenticated user
       const testRecord = {
         url: 'https://example.com/auth-test.mp4',
-        title: 'Auth Test Video',
-        alt_text: 'Auth Test Video',
-        category: 'Test'
+        title: 'Auth Test Video'
       };
       
       addLog(`Testing insert with authenticated user: ${JSON.stringify(testRecord)}`);
@@ -206,6 +204,38 @@ const VideoDebug = () => {
     }
   };
 
+  const testSchema = async () => {
+    try {
+      addLog("Checking database schema...");
+      
+      // Get table info
+      const { data, error } = await supabase
+        .from('media')
+        .select('*')
+        .limit(1);
+        
+      if (error) {
+        addLog(`Schema check failed: ${error.message}`);
+        alert(`Schema check failed: ${error.message}`);
+        return;
+      }
+      
+      if (data && data.length > 0) {
+        const columns = Object.keys(data[0]);
+        addLog(`Table columns: ${columns.join(', ')}`);
+        alert(`Table columns: ${columns.join(', ')}`);
+        console.log('Table data sample:', data[0]);
+      } else {
+        addLog('Table is empty');
+        alert('Table is empty');
+      }
+    } catch (error: any) {
+      console.error('Schema test error:', error);
+      addLog(`Schema test exception: ${error.message}`);
+      alert(`Schema test failed: ${error.message || 'Unknown error'}`);
+    }
+  };
+
   const testDatabaseConnection = async () => {
     try {
       addLog("Testing database connection...");
@@ -227,9 +257,7 @@ const VideoDebug = () => {
       // Test 2: Insert test
       const testRecord = {
         url: 'https://example.com/test.mp4',
-        title: 'Connection Test Video',
-        alt_text: 'Connection Test Video',
-        category: 'Test'
+        title: 'Connection Test Video'
       };
       
       addLog(`Insert test: ${JSON.stringify(testRecord)}`);
@@ -318,6 +346,9 @@ const VideoDebug = () => {
             </Button>
             <Button onClick={testAuthStatus} variant="outline">
               Test Auth
+            </Button>
+            <Button onClick={testSchema} variant="outline">
+              Check Schema
             </Button>
           </div>
         </CardContent>

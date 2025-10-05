@@ -19,44 +19,35 @@ import {
   Type,
   Home,
   Users,
-  Mail
+  Mail,
+  Bug
 } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Link, useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { useTheme } from 'next-themes';
+import { toast } from '@/components/ui/sonner';
+import { useAdminAuth } from '@/hooks/useAdminAuth';
 import './AdminLayout.css';
 
 const AdminLayout = () => {
-  const [user, setUser] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const { isAdmin, loading } = useAdminAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [user, setUser] = useState<any>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const { theme, setTheme } = useTheme();
 
   useEffect(() => {
-    checkUser();
-  }, []);
-
-  const checkUser = async () => {
-    try {
+    const fetchUser = async () => {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
-        navigate('/login');
-        return;
-      }
-      
-      // Check if user is admin (implement your own logic here)
-      // For now, we'll assume any authenticated user is an admin
       setUser(user);
-    } catch (error) {
-      console.error('Error checking user:', error);
-      navigate('/login');
-    } finally {
-      setLoading(false);
+    };
+    
+    if (isAdmin) {
+      fetchUser();
     }
-  };
+  }, [isAdmin]);
 
   const handleLogout = async () => {
     try {
@@ -75,13 +66,12 @@ const AdminLayout = () => {
 
   // Updated menu items without Media section
   const menuItems = [
-    { label: 'Dashboard', href: '/admin/dashboard', icon: BarChart3, category: 'Main' },
+    { label: 'Dashboard', href: '/admin', icon: BarChart3, category: 'Main' },
     { label: 'Articles', href: '/admin/articles', icon: FileText, category: 'Content' },
     { label: 'Videos', href: '/admin/videos', icon: Video, category: 'Content' },
-    { label: 'Text Content', href: '/admin/text-content', icon: Type, category: 'Content' },
+    { label: 'Text Content', href: '/admin/content', icon: Type, category: 'Content' },
     { label: 'Comments', href: '/admin/comments', icon: MessageSquare, category: 'Engagement' },
-    { label: 'Subscribers', href: '/admin/subscribers', icon: Users, category: 'Engagement' },
-    { label: 'Messages', href: '/admin/messages', icon: Mail, category: 'Engagement' },
+    { label: 'Schema Test', href: '/admin/schema-test', icon: Bug, category: 'Tools' },
     { label: 'Settings', href: '/admin/settings', icon: Settings, category: 'System' },
   ];
 
@@ -100,6 +90,10 @@ const AdminLayout = () => {
         <div className="animate-spin-custom rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
+  }
+
+  if (!isAdmin) {
+    return null; // or redirect to login page
   }
 
   return (
