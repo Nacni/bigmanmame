@@ -6,15 +6,15 @@ import { supabase } from '@/lib/supabase';
  */
 
 /**
- * Refresh Supabase schema cache by querying all tables
+ * Refresh Supabase schema cache by querying all tables with comprehensive column selection
  */
 export const refreshSchemaCache = async (): Promise<boolean> => {
   try {
-    // Query all tables to refresh schema cache
-    await supabase.from('articles').select('id').limit(1);
-    await supabase.from('media').select('id').limit(1);
-    await supabase.from('comments').select('id').limit(1);
-    await supabase.from('page_content').select('id').limit(1);
+    // Query all tables with comprehensive column selection to refresh schema cache
+    await supabase.from('articles').select('id, title, slug, content, status, created_at, updated_at, author_id, tags, featured_image, excerpt').limit(1);
+    await supabase.from('media').select('id, url, title, filename, category, description, alt_text, created_at').limit(1);
+    await supabase.from('comments').select('id, article_id, media_id, name, email, content, approved, created_at').limit(1);
+    await supabase.from('page_content').select('id, page_name, content, updated_at').limit(1);
     
     console.log('Schema cache refreshed successfully');
     return true;
@@ -45,7 +45,11 @@ export const executeWithRetry = async <T>(
       lastError = error;
       
       // If it's a schema cache error, refresh the cache
-      if (error.message && (error.message.includes('schema cache') || error.message.includes('column'))) {
+      if (error.message && (
+        error.message.includes('schema cache') || 
+        error.message.includes('column') || 
+        error.message.includes('Could not find the')
+      )) {
         console.log(`Schema cache error detected, refreshing cache (attempt ${i + 1}/${retries})`);
         await refreshSchemaCache();
         

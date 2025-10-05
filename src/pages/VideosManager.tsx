@@ -55,6 +55,8 @@ import {
   TabsTrigger,
 } from '@/components/ui/tabs';
 
+
+
 interface Video extends Media {
   title?: string;
   description?: string;
@@ -151,6 +153,39 @@ const VideosManager = () => {
     const files = e.target.files;
     if (files && files.length > 0) {
       setSelectedFiles(files);
+    }
+  };
+
+  const handleThumbnailUpload = async (file: File, videoId: string) => {
+    try {
+      setThumbnailUploading(true);
+      const fileExt = file.name.split('.').pop();
+      const fileName = `thumbnail_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `thumbnails/${fileName}`;
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('media')
+        .upload(filePath, file);
+
+      if (uploadError) {
+        console.error('Thumbnail upload error:', uploadError);
+        toast.error(`Failed to upload thumbnail: ${uploadError.message}`);
+        return null;
+      }
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('media')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error: any) {
+      console.error('Error uploading thumbnail:', error);
+      toast.error(`Failed to upload thumbnail: ${error.message || 'Unknown error'}`);
+      return null;
+    } finally {
+      setThumbnailUploading(false);
     }
   };
 
@@ -307,7 +342,18 @@ const VideosManager = () => {
       }
     } catch (error: any) {
       console.error('Error adding external video:', error);
-      toast.error(`Failed to add external video: ${error.message || 'Unknown error'}`);
+      
+      // If it's a schema cache error, try to refresh and retry
+      if (error.message && (
+        error.message.includes('schema cache') || 
+        error.message.includes('column') || 
+        error.message.includes('Could not find the')
+      )) {
+        toast.info("Schema cache issue detected. Click the 'Refresh Schema' button in the top right corner, then try again.");
+        toast.error(`Schema cache error: ${error.message || 'Unknown error'}`);
+      } else {
+        toast.error(`Failed to add external video: ${error.message || 'Unknown error'}`);
+      }
     }
   };
 
