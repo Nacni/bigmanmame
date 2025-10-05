@@ -8,7 +8,11 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "thumbnails:upload": "npx ts-node src/scripts/uploadThumbnails.ts",
+    "thumbnails:update": "npx ts-node src/scripts/updateFirstThreeThumbnails.ts",
+    "thumbnails:verify": "npx ts-node src/scripts/verifyThumbnails.ts",
+    "thumbnails:assign": "npx ts-node src/scripts/assignThumbnails.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

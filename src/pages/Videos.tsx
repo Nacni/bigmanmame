@@ -156,9 +156,21 @@ const Videos = () => {
   };
 
   // Use a placeholder thumbnail for dynamic videos
-  const getThumbnail = () => {
-    // In a real implementation, you might generate thumbnails or use a default image
-    return petroleumThumb; // Using existing thumbnail as placeholder
+  const getThumbnail = (index?: number) => {
+    // For the first three videos, use specific thumbnails
+    if (index !== undefined && index < 3) {
+      const thumbnails = [petroleumThumb, southwestThumb, electionThumb];
+      return thumbnails[index];
+    }
+    
+    // For other videos, use the petroleum thumbnail as default
+    return petroleumThumb;
+  };
+
+  // Function to assign specific thumbnails to featured videos
+  const getFeaturedVideoThumbnail = (videoId: string) => {
+    const featuredVideo = featuredVideos.find(video => video.id === videoId);
+    return featuredVideo ? featuredVideo.thumbnail : getThumbnail();
   };
 
   const handleCommentSubmit = async (videoId: string, e: React.FormEvent) => {
@@ -230,7 +242,7 @@ const Videos = () => {
     }));
   };
 
-  const VideoCard = ({ video }: { video: any }) => {
+  const VideoCard = ({ video, index }: { video: any; index?: number }) => {
     const videoComments = comments[video.id] || [];
     const isCommentsVisible = visibleComments[video.id] || false;
     
@@ -259,7 +271,7 @@ const Videos = () => {
           {/* Video Thumbnail */}
           <div className="relative overflow-hidden">
             <img 
-              src={video.thumbnail_url || getThumbnail()}
+              src={video.thumbnail || video.thumbnail_url || getThumbnail(index)}
               alt={video.title}
               className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
             />
@@ -430,8 +442,8 @@ const Videos = () => {
             </div>
 
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-              {featuredVideos.map((video) => (
-                <VideoCard key={video.id} video={video} />
+              {featuredVideos.map((video, index) => (
+                <VideoCard key={video.id} video={video} index={index} />
               ))}
             </div>
           </div>
@@ -461,8 +473,8 @@ const Videos = () => {
               </div>
             ) : (
               <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-8">
-                {videos.map((video) => (
-                  <VideoCard key={video.id} video={video} />
+                {videos.map((video, index) => (
+                  <VideoCard key={video.id} video={video} index={index} />
                 ))}
               </div>
             )}
@@ -479,7 +491,7 @@ const Videos = () => {
         videoSrc={currentVideo?.videoUrl || currentVideo?.url || ''}
         title={currentVideo?.title || ''}
         description={currentVideo?.description || currentVideo?.alt_text || ''}
-        thumbnail={currentVideo?.thumbnail || getThumbnail()}
+        thumbnail={currentVideo?.thumbnail || currentVideo?.thumbnail_url || getThumbnail()}
       />
     </div>
   );
