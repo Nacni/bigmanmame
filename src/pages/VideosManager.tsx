@@ -55,8 +55,8 @@ import {
   TabsList,
   TabsTrigger,
 } from '@/components/ui/tabs';
-
-
+import VideoPlayer from '@/components/VideoPlayer';
+import VideoModal from '@/components/VideoModal';
 
 interface Video extends Media {
   title?: string;
@@ -93,6 +93,10 @@ const VideosManager = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   // Add state for temporary bypass mode
   const [bypassMode, setBypassMode] = useState(false);
+
+  // State for video modal
+  const [currentVideo, setCurrentVideo] = useState<Video | null>(null);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
   // Handle login success
   const handleLoginSuccess = () => {
@@ -637,6 +641,132 @@ const VideosManager = () => {
     return matchesSearch;
   });
 
+  const VideoCard = ({ video }: { video: Video }) => {
+    const handlePlayVideo = () => {
+      // For external videos, open in new tab
+      if (video.is_external) {
+        window.open(video.video_url || video.url, '_blank');
+      } else {
+        // For uploaded videos, open in modal
+        setCurrentVideo(video);
+        setIsVideoModalOpen(true);
+      }
+    };
+
+    return (
+      <Card 
+        key={video.id} 
+        className="bg-card border-border hover:shadow-md transition-all duration-300 group"
+        draggable
+        onDragStart={(e) => handleDragStart(e, video)}
+        onDragOver={handleDragOver}
+        onDrop={(e) => handleDrop(e, video)}
+      >
+        <CardContent className="p-4">
+          <div className="aspect-video mb-3 bg-muted rounded-lg overflow-hidden flex items-center justify-center relative">
+            {video.thumbnail_url ? (
+              <img
+                src={video.thumbnail_url}
+                alt={video.alt_text || video.filename}
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="w-full h-full flex items-center justify-center bg-muted">
+                <VideoIcon className="h-12 w-12 text-muted-foreground" />
+              </div>
+            )}
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+              <Button 
+                size="icon" 
+                variant="secondary"
+                onClick={handlePlayVideo}
+                className="rounded-full"
+              >
+                <Play className="h-5 w-5" />
+              </Button>
+            </div>
+            {video.duration && (
+              <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                {video.duration}
+              </div>
+            )}
+            {video.is_external && (
+              <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
+                External
+              </div>
+            )}
+            <div 
+              className="absolute top-2 left-2 cursor-move text-white/70 hover:text-white"
+              draggable
+              onDragStart={(e) => handleDragStart(e, video)}
+            >
+              <GripVertical className="h-4 w-4" />
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <h3 className="font-medium text-foreground text-sm truncate">
+              {video.title || video.filename}
+            </h3>
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>{video.category}</span>
+              <span>{new Date(video.created_at).toLocaleDateString()}</span>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => copyToClipboard(video.video_url)}
+              className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+            
+            <div className="flex items-center space-x-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handlePlayVideo}
+                className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
+              >
+                <Play className="h-4 w-4" />
+              </Button>
+              
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => window.open(video.video_url, '_blank')}
+                className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
+              >
+                <Download className="h-4 w-4" />
+              </Button>
+              
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground h-8 w-8 p-0">
+                    <MoreHorizontal className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => openEditDialog(video)}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Edit
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => handleDelete(video)}>
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -904,107 +1034,7 @@ const VideosManager = () => {
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
           {filteredVideos.map((video) => (
-            <Card 
-              key={video.id} 
-              className="bg-card border-border hover:shadow-md transition-all duration-300 group"
-              draggable
-              onDragStart={(e) => handleDragStart(e, video)}
-              onDragOver={handleDragOver}
-              onDrop={(e) => handleDrop(e, video)}
-            >
-              <CardContent className="p-4">
-                <div className="aspect-video mb-3 bg-muted rounded-lg overflow-hidden flex items-center justify-center relative">
-                  {video.thumbnail_url ? (
-                    <img
-                      src={video.thumbnail_url}
-                      alt={video.alt_text || video.filename}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center bg-muted">
-                      <VideoIcon className="h-12 w-12 text-muted-foreground" />
-                    </div>
-                  )}
-                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Button 
-                      size="icon" 
-                      variant="secondary"
-                      onClick={() => window.open(video.video_url, '_blank')}
-                      className="rounded-full"
-                    >
-                      <Play className="h-5 w-5" />
-                    </Button>
-                  </div>
-                  {video.duration && (
-                    <div className="absolute bottom-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
-                      {video.duration}
-                    </div>
-                  )}
-                  {video.is_external && (
-                    <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded">
-                      External
-                    </div>
-                  )}
-                  <div 
-                    className="absolute top-2 left-2 cursor-move text-white/70 hover:text-white"
-                    draggable
-                    onDragStart={(e) => handleDragStart(e, video)}
-                  >
-                    <GripVertical className="h-4 w-4" />
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <h3 className="font-medium text-foreground text-sm truncate">
-                    {video.title || video.filename}
-                  </h3>
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span>{video.category}</span>
-                    <span>{new Date(video.created_at).toLocaleDateString()}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center justify-between mt-3 pt-3 border-t border-border">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => copyToClipboard(video.video_url)}
-                    className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
-                  >
-                    <Copy className="h-4 w-4" />
-                  </Button>
-                  
-                  <div className="flex items-center space-x-1">
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => window.open(video.video_url, '_blank')}
-                      className="text-muted-foreground hover:text-foreground h-8 w-8 p-0"
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground h-8 w-8 p-0">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => openEditDialog(video)}>
-                          <Edit className="mr-2 h-4 w-4" />
-                          Edit
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDelete(video)}>
-                          <Trash2 className="mr-2 h-4 w-4" />
-                          Delete
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            <VideoCard key={video.id} video={video} />
           ))}
         </div>
       )}
@@ -1148,6 +1178,16 @@ const VideosManager = () => {
           )}
         </DialogContent>
       </Dialog>
+      
+      {/* Video Modal */}
+      <VideoModal
+        isOpen={isVideoModalOpen}
+        onClose={() => setIsVideoModalOpen(false)}
+        videoSrc={currentVideo?.video_url || currentVideo?.url || ''}
+        title={currentVideo?.title || ''}
+        description={currentVideo?.description || currentVideo?.alt_text || ''}
+        thumbnail={currentVideo?.thumbnail_url || undefined}
+      />
     </div>
   );
 };

@@ -4,7 +4,7 @@ import Footer from '@/components/Footer';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useScrollAnimation } from '@/hooks/use-scroll-animation';
-import { Play, ExternalLink, Calendar, Clock, Eye, MessageSquare } from 'lucide-react';
+import { Play, ExternalLink, Calendar, Clock, Eye, MessageSquare, X } from 'lucide-react';
 import { supabase } from '@/lib/supabase';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -13,6 +13,8 @@ import { toast } from '@/components/ui/sonner';
 import petroleumThumb from '@/assets/video-petroleum-thumb.jpg';
 import southwestThumb from '@/assets/video-southwest-thumb.jpg';
 import electionThumb from '@/assets/video-election-thumb.jpg';
+import VideoPlayer from '@/components/VideoPlayer';
+import VideoModal from '@/components/VideoModal';
 
 const Videos = () => {
   const [heroRef, heroVisible] = useScrollAnimation();
@@ -24,6 +26,10 @@ const Videos = () => {
   const [submitting, setSubmitting] = useState<{[key: string]: boolean}>({});
   // Add state to track which videos have their comments visible
   const [visibleComments, setVisibleComments] = useState<{[key: string]: boolean}>({});
+
+  // State for video modal
+  const [currentVideo, setCurrentVideo] = useState<any>(null);
+  const [isVideoModalOpen, setIsVideoModalOpen] = useState(false);
 
   // Featured videos (these will remain as hardcoded examples)
   const featuredVideos = [
@@ -143,6 +149,8 @@ const Videos = () => {
   };
 
   const handleVideoClick = (videoUrl: string) => {
+    // For external videos, open in new tab
+    // For uploaded videos, we'll show them in modal
     if (videoUrl !== '#') {
       window.open(videoUrl, '_blank');
     }
@@ -235,145 +243,159 @@ const Videos = () => {
       }));
     };
     
+    // Handle play video
+    const handlePlayVideo = () => {
+      // For external videos, open in new tab
+      if (video.is_external) {
+        window.open(video.videoUrl || video.url, '_blank');
+      } else {
+        // For uploaded videos, open in modal
+        setCurrentVideo(video);
+        setIsVideoModalOpen(true);
+      }
+    };
+    
     return (
-      <Card className="bg-card hover:bg-card/80 border-border hover:border-primary/50 transition-all duration-300 hover:shadow-neon group overflow-hidden">
-        {/* Video Thumbnail */}
-        <div className="relative overflow-hidden">
-          <img 
-            src={video.thumbnail || getThumbnail()}
-            alt={video.title}
-            className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
-          />
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-            <Button 
-              size="lg"
-              className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow"
-              onClick={() => handleVideoClick(video.videoUrl || video.url)}
-            >
-              <Play className="mr-2 h-5 w-5" />
-              Watch Video
-            </Button>
-          </div>
-          {video.is_external && (
-            <div className="absolute top-4 right-4">
-              <div className="bg-red-500 text-white px-2 py-1 rounded text-sm font-medium">
-                External
-              </div>
+      <>
+        <Card className="bg-card hover:bg-card/80 border-border hover:border-primary/50 transition-all duration-300 hover:shadow-neon group overflow-hidden">
+          {/* Video Thumbnail */}
+          <div className="relative overflow-hidden">
+            <img 
+              src={video.thumbnail || getThumbnail()}
+              alt={video.title}
+              className="w-full h-48 object-cover transition-transform duration-300 group-hover:scale-105"
+            />
+            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
+              <Button 
+                size="lg"
+                className="bg-primary text-primary-foreground hover:bg-primary/90 shadow-glow"
+                onClick={handlePlayVideo}
+              >
+                <Play className="mr-2 h-5 w-5" />
+                {video.is_external ? 'Watch on Platform' : 'Play Video'}
+              </Button>
             </div>
-          )}
-        </div>
-
-        {/* Video Content */}
-        <CardHeader>
-          <CardTitle className="text-xl font-bold text-card-foreground group-hover:text-primary transition-colors duration-300">
-            {video.title}
-          </CardTitle>
-          <div className="flex items-center gap-2">
-            <Calendar className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">
-              {video.date || new Date(video.created_at).toLocaleDateString()}
-            </span>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <CardDescription className="text-muted-foreground leading-relaxed">
-            {video.description || video.alt_text || 'No description available'}
-          </CardDescription>
-          <Button 
-            variant="outline"
-            className="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300"
-            onClick={() => handleVideoClick(video.videoUrl || video.url)}
-          >
-            <ExternalLink className="mr-2 h-4 w-4" />
-            {video.is_external ? 'Watch on Platform' : 'Play Video'}
-          </Button>
-          
-          {/* Comment Toggle Button */}
-          <div className="border-t border-border pt-4 mt-4">
-            <Button 
-              onClick={() => toggleComments(video.id)}
-              variant="ghost"
-              className="w-full justify-start text-left hover:bg-muted/50"
-            >
-              <MessageSquare className="h-5 w-5 mr-2 text-muted-foreground" />
-              {isCommentsVisible ? 'Hide Comments' : `Comment (${videoComments.length})`}
-            </Button>
-            
-            {/* Comments Section - Hidden by default, shown when toggled */}
-            {isCommentsVisible && (
-              <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
-                {/* Comment Form */}
-                <form onSubmit={(e) => handleCommentSubmit(video.id, e)} className="space-y-3">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                    <div className="space-y-1">
-                      <Label htmlFor={`name-${video.id}`} className="text-xs text-foreground">Name</Label>
-                      <Input
-                        id={`name-${video.id}`}
-                        value={newComment[video.id]?.name || ''}
-                        onChange={(e) => handleCommentChange(video.id, 'name', e.target.value)}
-                        placeholder="Your name"
-                        className="bg-input border-border text-foreground text-sm h-8"
-                        required
-                      />
-                    </div>
-                    <div className="space-y-1">
-                      <Label htmlFor={`email-${video.id}`} className="text-xs text-foreground">Email</Label>
-                      <Input
-                        id={`email-${video.id}`}
-                        type="email"
-                        value={newComment[video.id]?.email || ''}
-                        onChange={(e) => handleCommentChange(video.id, 'email', e.target.value)}
-                        placeholder="Your email"
-                        className="bg-input border-border text-foreground text-sm h-8"
-                        required
-                      />
-                    </div>
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor={`comment-${video.id}`} className="text-xs text-foreground">Comment</Label>
-                    <Textarea
-                      id={`comment-${video.id}`}
-                      value={newComment[video.id]?.content || ''}
-                      onChange={(e) => handleCommentChange(video.id, 'content', e.target.value)}
-                      placeholder="Write your comment..."
-                      className="bg-input border-border text-foreground text-sm"
-                      rows={3}
-                      required
-                    />
-                  </div>
-                  <Button 
-                    type="submit" 
-                    disabled={submitting[video.id]}
-                    size="sm"
-                    className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs h-8"
-                  >
-                    {submitting[video.id] ? 'Submitting...' : 'Post Comment'}
-                  </Button>
-                </form>
-                
-                {/* Comments List */}
-                <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
-                  {videoComments.length === 0 ? (
-                    <p className="text-muted-foreground text-sm">No comments yet. Be the first to comment!</p>
-                  ) : (
-                    videoComments.map((comment: any) => (
-                      <div key={comment.id} className="bg-muted/30 rounded-lg p-3">
-                        <div className="flex justify-between items-start mb-1">
-                          <h4 className="font-medium text-foreground text-sm">{comment.name}</h4>
-                          <span className="text-xs text-muted-foreground">
-                            {new Date(comment.created_at).toLocaleDateString()}
-                          </span>
-                        </div>
-                        <p className="text-muted-foreground text-sm">{comment.content}</p>
-                      </div>
-                    ))
-                  )}
+            {video.is_external && (
+              <div className="absolute top-4 right-4">
+                <div className="bg-red-500 text-white px-2 py-1 rounded text-sm font-medium">
+                  External
                 </div>
               </div>
             )}
           </div>
-        </CardContent>
-      </Card>
+
+          {/* Video Content */}
+          <CardHeader>
+            <CardTitle className="text-xl font-bold text-card-foreground group-hover:text-primary transition-colors duration-300">
+              {video.title}
+            </CardTitle>
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">
+                {video.date || new Date(video.created_at).toLocaleDateString()}
+              </span>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <CardDescription className="text-muted-foreground leading-relaxed">
+              {video.description || video.alt_text || 'No description available'}
+            </CardDescription>
+            <Button 
+              variant="outline"
+              className="w-full border-primary text-primary hover:bg-primary hover:text-primary-foreground transition-all duration-300"
+              onClick={handlePlayVideo}
+            >
+              <ExternalLink className="mr-2 h-4 w-4" />
+              {video.is_external ? 'Watch on Platform' : 'Play Video'}
+            </Button>
+            
+            {/* Comment Toggle Button */}
+            <div className="border-t border-border pt-4 mt-4">
+              <Button 
+                onClick={() => toggleComments(video.id)}
+                variant="ghost"
+                className="w-full justify-start text-left hover:bg-muted/50"
+              >
+                <MessageSquare className="h-5 w-5 mr-2 text-muted-foreground" />
+                {isCommentsVisible ? 'Hide Comments' : `Comment (${videoComments.length})`}
+              </Button>
+              
+              {/* Comments Section - Hidden by default, shown when toggled */}
+              {isCommentsVisible && (
+                <div className="mt-4 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                  {/* Comment Form */}
+                  <form onSubmit={(e) => handleCommentSubmit(video.id, e)} className="space-y-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label htmlFor={`name-${video.id}`} className="text-xs text-foreground">Name</Label>
+                        <Input
+                          id={`name-${video.id}`}
+                          value={newComment[video.id]?.name || ''}
+                          onChange={(e) => handleCommentChange(video.id, 'name', e.target.value)}
+                          placeholder="Your name"
+                          className="bg-input border-border text-foreground text-sm h-8"
+                          required
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label htmlFor={`email-${video.id}`} className="text-xs text-foreground">Email</Label>
+                        <Input
+                          id={`email-${video.id}`}
+                          type="email"
+                          value={newComment[video.id]?.email || ''}
+                          onChange={(e) => handleCommentChange(video.id, 'email', e.target.value)}
+                          placeholder="Your email"
+                          className="bg-input border-border text-foreground text-sm h-8"
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor={`comment-${video.id}`} className="text-xs text-foreground">Comment</Label>
+                      <Textarea
+                        id={`comment-${video.id}`}
+                        value={newComment[video.id]?.content || ''}
+                        onChange={(e) => handleCommentChange(video.id, 'content', e.target.value)}
+                        placeholder="Write your comment..."
+                        className="bg-input border-border text-foreground text-sm"
+                        rows={3}
+                        required
+                      />
+                    </div>
+                    <Button 
+                      type="submit" 
+                      disabled={submitting[video.id]}
+                      size="sm"
+                      className="bg-primary text-primary-foreground hover:bg-primary/90 text-xs h-8"
+                    >
+                      {submitting[video.id] ? 'Submitting...' : 'Post Comment'}
+                    </Button>
+                  </form>
+                  
+                  {/* Comments List */}
+                  <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                    {videoComments.length === 0 ? (
+                      <p className="text-muted-foreground text-sm">No comments yet. Be the first to comment!</p>
+                    ) : (
+                      videoComments.map((comment: any) => (
+                        <div key={comment.id} className="bg-muted/30 rounded-lg p-3">
+                          <div className="flex justify-between items-start mb-1">
+                            <h4 className="font-medium text-foreground text-sm">{comment.name}</h4>
+                            <span className="text-xs text-muted-foreground">
+                              {new Date(comment.created_at).toLocaleDateString()}
+                            </span>
+                          </div>
+                          <p className="text-muted-foreground text-sm">{comment.content}</p>
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      </>
     );
   };
 
@@ -451,6 +473,16 @@ const Videos = () => {
       </main>
       
       <Footer />
+      
+      {/* Video Modal */}
+      <VideoModal
+        isOpen={isVideoModalOpen}
+        onClose={() => setIsVideoModalOpen(false)}
+        videoSrc={currentVideo?.videoUrl || currentVideo?.url || ''}
+        title={currentVideo?.title || ''}
+        description={currentVideo?.description || currentVideo?.alt_text || ''}
+        thumbnail={currentVideo?.thumbnail || getThumbnail()}
+      />
     </div>
   );
 };
