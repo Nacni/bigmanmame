@@ -100,6 +100,10 @@ export const insertWithSchemaHandling = async <T>(
     const result = await supabase.from(table).insert(data);
     
     if (result.error) {
+      // If it's an RLS error, provide a more helpful message
+      if (result.error.message.includes('violates row-level security policy')) {
+        throw new Error('Authentication required: You must be logged in to perform this action. Please refresh the page and log in.');
+      }
       throw result.error;
     }
     
@@ -123,6 +127,10 @@ export const updateWithSchemaHandling = async <T>(
     const result = await supabase.from(table).update(data).match(match);
     
     if (result.error) {
+      // If it's an RLS error, provide a more helpful message
+      if (result.error.message.includes('violates row-level security policy')) {
+        throw new Error('Authentication required: You must be logged in to perform this action. Please refresh the page and log in.');
+      }
       throw result.error;
     }
     
@@ -144,6 +152,10 @@ export const deleteWithSchemaHandling = async <T>(
     const result = await supabase.from(table).delete().match(match);
     
     if (result.error) {
+      // If it's an RLS error, provide a more helpful message
+      if (result.error.message.includes('violates row-level security policy')) {
+        throw new Error('Authentication required: You must be logged in to perform this action. Please refresh the page and log in.');
+      }
       throw result.error;
     }
     
